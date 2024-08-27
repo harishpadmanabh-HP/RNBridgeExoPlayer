@@ -14,6 +14,7 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/*
 class VideoPlayerViewModel(private val application: Application) : AndroidViewModel(application) {
 
     private val _videoProps = MutableStateFlow(VideoProps())
@@ -97,6 +98,7 @@ class VideoPlayerViewModel(private val application: Application) : AndroidViewMo
         Log.i(LogTag, "Player released")
     }
 }
+*/
 
 @Keep
 data class VideoProps(

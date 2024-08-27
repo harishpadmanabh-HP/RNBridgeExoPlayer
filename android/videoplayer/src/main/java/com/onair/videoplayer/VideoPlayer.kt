@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Dialog
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration.ORIENTATION_LANDSCAPE
+import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -11,11 +12,11 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.annotation.OptIn
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -39,8 +40,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
@@ -121,7 +124,6 @@ fun VideoPlayer(
     val exoPlayerListener = remember {
         object : Player.Listener {
 
-
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 onIsPlayingChanged(isPlaying)
                 Log.d(LogTag, "onIsPlayingChanged: $isPlaying")
@@ -184,7 +186,6 @@ fun VideoPlayer(
     }
 
 
-
     val interactionSource = remember { MutableInteractionSource() }
     var isControllerViible by remember {
         mutableStateOf(false)
@@ -192,6 +193,9 @@ fun VideoPlayer(
 
     val fullScreenButton = remember {
         playerView.findViewById<ImageView>(R.id.exo_fullscreen_img)
+    }
+    val titleView = remember {
+        playerView.findViewById<TextView>(R.id.exo_title)
     }
 
     val openFullScreenDialog = {
@@ -227,6 +231,10 @@ fun VideoPlayer(
         fullScreenDialog?.dismiss()
     }
 
+    val showTitle = {
+        titleView.setText(title)
+    }
+
 
     val initFullScreenDialog = {
         fullScreenDialog =
@@ -236,6 +244,15 @@ fun VideoPlayer(
                 override fun onBackPressed() {
                     if (isFullscreen) closeFullScreenDialog()
                     super.onBackPressed()
+                }
+
+                override fun onCreate(savedInstanceState: Bundle?) {
+                    super.onCreate(savedInstanceState)
+                    val windowInsetsController =
+                        window?.decorView?.let { WindowCompat.getInsetsController(window!!, it) }
+                    windowInsetsController?.systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
                 }
             }
     }
@@ -252,6 +269,7 @@ fun VideoPlayer(
             if (event == Lifecycle.Event.ON_CREATE) {
                 initFullScreenButton()
                 initFullScreenDialog()
+                showTitle()
             } else if (event == Lifecycle.Event.ON_START) {
                 if (exoPlayer.isPlaying.not()) {
                     exoPlayer.play()
@@ -328,7 +346,7 @@ fun VideoPlayer(
 
             },
             modifier = Modifier
-              //  .fillMaxSize()
+                //  .fillMaxSize()
                 .focusable(
                     enabled = true,
                     interactionSource = interactionSource
