@@ -18,13 +18,15 @@ const { NativeVideoPlayerBridgeModule } = NativeModules;
 const App = () => {
   const [isTV, setIsTV] = useState(false);
 
-
-  const [playerProps, setPlayerProps] = useState({
+  const playerProps = {
     videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
     startPosition: 0,
     isPlaying: true,
-    resizeMode: 1
-  });
+    resizeMode: 1,
+    videoTitle : 'Big Bucks',
+    videoDescription : 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industrys standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum'
+
+  }
 
   const videoPlayerRef = useRef(null);
 
@@ -39,38 +41,26 @@ const App = () => {
 
    detectTV();
 
-    const eventEmitter = new NativeEventEmitter(NativeModules.VideoPlayerManager);
-    const subscription = eventEmitter.addListener('onFullScreenResult', (result) => {
-      NativeVideoPlayerBridgeModule.testLog(result.startPosition.toString());
-      NativeVideoPlayerBridgeModule.testLog('caught in event emitter');
-      setPlayerProps({
-        videoUrl: playerProps.videoUrl,
-        startPosition: result.startPosition || 0,
-        isPlaying: result.isPlaying || false,
-        resizeMode: playerProps.resizeMode
-      });
-    });
-
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
       NativeVideoPlayerBridgeModule.testLog('BackPress');
       return false;
     });
 
     return () => {
-      subscription.remove();
       backHandler.remove();
     };
-  }, [playerProps]);
+  }, []);
 
   const renderPhoneView = () => (
     <View style={styles.container}>
-      <Text style={styles.title}></Text>
-      <Text style={styles.description}>{"startPosition : " + playerProps.startPosition.toString()}</Text>
-      <VideoPlayerView
+        <VideoPlayerView
         ref={videoPlayerRef}
         style={styles.videoPlayer}
         playerProps={playerProps}
       />
+      <Text style={styles.title}>{playerProps.videoTitle}</Text>
+      <Text style={styles.description}>{playerProps.videoDescription}</Text>
+   
     </View>
   );
 
@@ -90,7 +80,7 @@ const App = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: 0,
   },
   title: {
     fontSize: 24,
@@ -103,7 +93,7 @@ const styles = StyleSheet.create({
   },
   videoPlayer: {
     width: '100%',
-    height: 200,
+    height: 300,
     marginBottom: 16,
   },
   fullScreenVideoPlayer: {
