@@ -2,8 +2,8 @@ package com.onair.videoplayer
 
 import android.app.Activity
 import android.app.Dialog
-import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration.ORIENTATION_LANDSCAPE
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -64,8 +64,7 @@ val LogTag = "NativeVideoPlayer"
 fun VideoPlayer(
     videoUrl: String,
     reactActivity: Activity,
-    parentFrame:FrameLayout,
-    startPosition: Long = -1L,
+    parentFrame: FrameLayout,
     modifier: Modifier = Modifier,
     title: String = "",
     description: String = "",
@@ -83,7 +82,6 @@ fun VideoPlayer(
     onPlayerError: (Int) -> Unit = {},
     onKeyEvent: (NativeKeyEvent) -> Unit = {},
     onProgressChange: (Long) -> Unit = {},
-    onPlayerAttached: (ExoPlayer) -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = reactActivity
@@ -91,22 +89,9 @@ fun VideoPlayer(
     val configuration = LocalConfiguration.current
     var orientation by remember { mutableStateOf(configuration.orientation) }
 
-
-    var playbackPosition by rememberSaveable { mutableStateOf(0L) }
-    var currentWindowIndex by rememberSaveable { mutableStateOf(0) }
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
-    var isPlayerPlaying by rememberSaveable { mutableStateOf(true) }
-
-
     var fullScreenDialog by remember {
         mutableStateOf<Dialog?>(null)
-    }
-
-
-
-    LaunchedEffect(configuration.orientation) {
-        orientation = configuration.orientation
-        Log.i(LogTag, "Orientation changed: $orientation")
     }
 
 
@@ -196,29 +181,11 @@ fun VideoPlayer(
         PlayerView(context)
     }
 
-    val openFullScreen = {
-        val intent = Intent(context, FullScreenVideoPlayerActivity::class.java).also {
-            it.putExtra(FullScreenVideoPlayerActivity.VIDEO_URL, videoUrl)
-            it.putExtra(
-                FullScreenVideoPlayerActivity.VIDEO_START_POSITION,
-                exoPlayer.currentPosition
-            )
-        }
-        context.startActivity(intent)
-    }
-
 
     val interactionSource = remember { MutableInteractionSource() }
     var isControllerViible by remember {
         mutableStateOf(false)
     }
-
-    LaunchedEffect(startPosition) {
-        Log.i("FullScreenVideoActivity", "start position changed $startPosition")
-        if (startPosition > -1L)
-            exoPlayer.seekTo(startPosition)
-    }
-
 
     val fullScreenButton = remember {
         playerView.findViewById<ImageView>(R.id.exo_fullscreen_img)
@@ -228,7 +195,7 @@ fun VideoPlayer(
         fullScreenButton.setImageDrawable(
             ContextCompat.getDrawable(
                 context,
-                androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_enter
+                androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_exit
             )
         )
         activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
@@ -245,18 +212,12 @@ fun VideoPlayer(
     }
 
     val closeFullScreenDialog = {
-        fullScreenButton.setImageDrawable(
-            ContextCompat.getDrawable(
-                context,
-                androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_exit
-            )
-        )
         activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
         (playerView.parent as ViewGroup).removeView(playerView)
         parentFrame.addView(playerView)
         fullScreenButton.setImageDrawable(
             ContextCompat.getDrawable(
-                context, androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_exit
+                context, androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_enter
             )
         )
         isFullscreen = false
@@ -305,6 +266,13 @@ fun VideoPlayer(
         }
     }
 
+    LaunchedEffect(configuration.orientation) {
+        orientation = configuration.orientation
+        Log.i(LogTag, "Orientation changed: $orientation isFullscreen: $isFullscreen")
+        if (orientation == ORIENTATION_LANDSCAPE && !isFullscreen && exoPlayer.isPlaying) {
+            openFullScreenDialog()
+        }
+    }
 
     Box(
         modifier = modifier.onNotVisible {
@@ -322,9 +290,6 @@ fun VideoPlayer(
             },
             update = {
                 it.player = exoPlayer
-                exoPlayer?.let {
-                    onPlayerAttached(exoPlayer)
-                }
                 it.setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                 it.setControllerAnimationEnabled(true)
                 it.setShowFastForwardButton(true)
@@ -332,10 +297,6 @@ fun VideoPlayer(
                 it.setShowNextButton(false)
                 it.setShowPreviousButton(false)
                 it.showController()
-                /* it.setFullscreenButtonClickListener { fullScreen ->
-                     onFullScreenToggle(fullScreen, exoPlayer.currentPosition)
-                     Log.i(LogTag, "FullScreenChanged: $fullScreen")
-                 }*/
                 it.setResizeMode(resizeMode.asAspectRatioFrameLayoutResizeMode())
                 it.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener {
                     isControllerViible = it == View.VISIBLE
