@@ -29,12 +29,12 @@ class FullScreenVideoPlayerActivity : ComponentActivity() {
             VideoPlayerTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     videoUrl?.let { url ->
-                        VideoPlayer(
+                        /*VideoPlayer(
                             videoUrl = url,
                             startPosition=startPosition,
                             resizeMode = VideoResizeKeys.RESIZE_MODE_FILL,
                             modifier = Modifier.fillMaxSize()
-                        )
+                        )*/
                     }
                 }
             }

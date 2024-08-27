@@ -1,10 +1,16 @@
 package com.onair.videoplayer
 
+import android.app.Activity
+import android.app.Dialog
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.ImageView
 import androidx.annotation.OptIn
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -33,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
@@ -56,6 +63,8 @@ val LogTag = "NativeVideoPlayer"
 @Composable
 fun VideoPlayer(
     videoUrl: String,
+    reactActivity: Activity,
+    parentFrame:FrameLayout,
     startPosition: Long = -1L,
     modifier: Modifier = Modifier,
     title: String = "",
@@ -77,9 +86,22 @@ fun VideoPlayer(
     onPlayerAttached: (ExoPlayer) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val activity = reactActivity
     val focusRequester = remember { FocusRequester() }
     val configuration = LocalConfiguration.current
     var orientation by remember { mutableStateOf(configuration.orientation) }
+
+
+    var playbackPosition by rememberSaveable { mutableStateOf(0L) }
+    var currentWindowIndex by rememberSaveable { mutableStateOf(0) }
+    var isFullscreen by rememberSaveable { mutableStateOf(false) }
+    var isPlayerPlaying by rememberSaveable { mutableStateOf(true) }
+
+
+    var fullScreenDialog by remember {
+        mutableStateOf<Dialog?>(null)
+    }
+
 
 
     LaunchedEffect(configuration.orientation) {
@@ -147,9 +169,7 @@ fun VideoPlayer(
             .also {
                 if (isLive) {
                     it.setMediaSourceFactory(
-                        DefaultMediaSourceFactory(context).setLiveTargetOffsetMs(
-                            5000
-                        )
+                        DefaultMediaSourceFactory(context).setLiveTargetOffsetMs(5000)
                     )
                     it.setLivePlaybackSpeedControl(
                         DefaultLivePlaybackSpeedControl.Builder().setFallbackMaxPlaybackSpeed(1.04f)
@@ -187,9 +207,88 @@ fun VideoPlayer(
         context.startActivity(intent)
     }
 
+
+    val interactionSource = remember { MutableInteractionSource() }
+    var isControllerViible by remember {
+        mutableStateOf(false)
+    }
+
+    LaunchedEffect(startPosition) {
+        Log.i("FullScreenVideoActivity", "start position changed $startPosition")
+        if (startPosition > -1L)
+            exoPlayer.seekTo(startPosition)
+    }
+
+
+    val fullScreenButton = remember {
+        playerView.findViewById<ImageView>(R.id.exo_fullscreen_img)
+    }
+
+    val openFullScreenDialog = {
+        fullScreenButton.setImageDrawable(
+            ContextCompat.getDrawable(
+                context,
+                androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_enter
+            )
+        )
+        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        (playerView.parent as ViewGroup).removeView(playerView)
+        fullScreenDialog?.addContentView(
+            playerView,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+        isFullscreen = true
+        fullScreenDialog?.show()
+    }
+
+    val closeFullScreenDialog = {
+        fullScreenButton.setImageDrawable(
+            ContextCompat.getDrawable(
+                context,
+                androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_exit
+            )
+        )
+        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
+        (playerView.parent as ViewGroup).removeView(playerView)
+        parentFrame.addView(playerView)
+        fullScreenButton.setImageDrawable(
+            ContextCompat.getDrawable(
+                context, androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_exit
+            )
+        )
+        isFullscreen = false
+        fullScreenDialog?.dismiss()
+    }
+
+
+    val initFullScreenDialog = {
+        fullScreenDialog =
+            object :
+                Dialog(reactActivity, android.R.style.Theme_Black_NoTitleBar_Fullscreen) {
+                @Deprecated("Deprecated in Java")
+                override fun onBackPressed() {
+                    if (isFullscreen) closeFullScreenDialog()
+                    super.onBackPressed()
+                }
+            }
+    }
+
+    val initFullScreenButton = {
+        fullScreenButton.setOnClickListener {
+            if (isFullscreen) closeFullScreenDialog()
+            else openFullScreenDialog()
+        }
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_START) {
+            if (event == Lifecycle.Event.ON_CREATE) {
+                initFullScreenButton()
+                initFullScreenDialog()
+            } else if (event == Lifecycle.Event.ON_START) {
                 if (exoPlayer.isPlaying.not()) {
                     exoPlayer.play()
                 }
@@ -206,17 +305,6 @@ fun VideoPlayer(
         }
     }
 
-
-    val interactionSource = remember { MutableInteractionSource() }
-    var isControllerViible by remember {
-        mutableStateOf(false)
-    }
-
-    LaunchedEffect(startPosition) {
-        Log.i("FullScreenVideoActivity", "start position changed $startPosition")
-        if (startPosition > -1L)
-            exoPlayer.seekTo(startPosition)
-    }
 
     Box(
         modifier = modifier.onNotVisible {
@@ -235,7 +323,7 @@ fun VideoPlayer(
             update = {
                 it.player = exoPlayer
                 exoPlayer?.let {
-                    onPlayerAttached(exoPlayer )
+                    onPlayerAttached(exoPlayer)
                 }
                 it.setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
                 it.setControllerAnimationEnabled(true)
@@ -244,10 +332,10 @@ fun VideoPlayer(
                 it.setShowNextButton(false)
                 it.setShowPreviousButton(false)
                 it.showController()
-                it.setFullscreenButtonClickListener { fullScreen ->
-                    onFullScreenToggle(fullScreen, exoPlayer.currentPosition)
-                    Log.i(LogTag, "FullScreenChanged: $fullScreen")
-                }
+                /* it.setFullscreenButtonClickListener { fullScreen ->
+                     onFullScreenToggle(fullScreen, exoPlayer.currentPosition)
+                     Log.i(LogTag, "FullScreenChanged: $fullScreen")
+                 }*/
                 it.setResizeMode(resizeMode.asAspectRatioFrameLayoutResizeMode())
                 it.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener {
                     isControllerViible = it == View.VISIBLE
@@ -357,6 +445,8 @@ fun Int.asAspectRatioFrameLayoutResizeMode() = when (this) {
         AspectRatioFrameLayout.RESIZE_MODE_FIT
     }
 }
+
+
 
 
 

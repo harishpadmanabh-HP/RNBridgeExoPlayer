@@ -74,9 +74,28 @@
 
             <ImageButton android:id="@id/exo_settings"
                 style="@style/ExoStyledControls.Button.Bottom.Settings"/>
+<!--
 
             <ImageButton android:id="@id/exo_fullscreen"
                 style="@style/ExoStyledControls.Button.Bottom.FullScreen"/>
+-->
+            <FrameLayout
+                android:id="@+id/exo_fullscreen_button"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_gravity="center"
+                >
+
+                <ImageView
+                    android:id="@+id/exo_fullscreen_img"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_gravity="center"
+                    android:adjustViewBounds="true"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/exo_styled_controls_fullscreen_enter"/>
+
+            </FrameLayout>
 
             <ImageButton android:id="@id/exo_overflow_show"
                 style="@style/ExoStyledControls.Button.Bottom.OverflowShow"/>
