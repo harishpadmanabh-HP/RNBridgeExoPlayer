@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -112,6 +113,11 @@ fun VideoPlayer(
         }
     }
 
+
+    val playerView = remember {
+        PlayerView(context)
+    }
+
     val exoPlayerListener = remember {
         object : Player.Listener {
 
@@ -177,9 +183,6 @@ fun VideoPlayer(
         Log.i(LogTag, "Player released")
     }
 
-    val playerView = remember {
-        PlayerView(context)
-    }
 
 
     val interactionSource = remember { MutableInteractionSource() }
@@ -325,7 +328,7 @@ fun VideoPlayer(
 
             },
             modifier = Modifier
-                .fillMaxSize()
+              //  .fillMaxSize()
                 .focusable(
                     enabled = true,
                     interactionSource = interactionSource
