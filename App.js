@@ -15,11 +15,14 @@ import {
 const VideoPlayerView = requireNativeComponent('VideoPlayerManager');
 const { NativeVideoPlayerBridgeModule } = NativeModules;
 
+const testDashUrlWithSubTitle = 'https://po.cdn.onair.events/test-demo/test-5min-uhd-sdr-sur-lossless-subtitle-vtt-eng-dut-drm-/hd/no-drm/index.mpd'
+const testUrl = 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+
 const App = () => {
   const [isTV, setIsTV] = useState(false);
 
   const playerProps = {
-    videoUrl: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    videoUrl: testDashUrlWithSubTitle,
     startPosition: 0,
     isPlaying: true,
     resizeMode: 1,
@@ -93,7 +96,7 @@ const styles = StyleSheet.create({
   },
   videoPlayer: {
     width: '100%',
-    height: 300,
+    height: 222,
     marginBottom: 16,
   },
   fullScreenVideoPlayer: {

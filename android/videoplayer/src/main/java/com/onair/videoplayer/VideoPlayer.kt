@@ -30,6 +30,7 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.NativeKeyEvent
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -41,6 +42,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -52,12 +54,14 @@ import androidx.media3.common.Metadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
+import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.PlayerView.ARTWORK_DISPLAY_MODE_FILL
 
@@ -120,7 +124,9 @@ fun VideoPlayer(
     val playerView = remember {
         PlayerView(context)
     }
-
+    val subTitleView = remember {
+        playerView.findViewById<TextView>(R.id.customSubtitle)
+    }
     val exoPlayerListener = remember {
         object : Player.Listener {
 
@@ -149,6 +155,11 @@ fun VideoPlayer(
                 super.onTracksChanged(tracks)
                 Log.d(LogTag, "onTracksChanged: ${tracks.groups}")
             }
+            override fun onCues(cueGroup: CueGroup) {
+                super.onCues(cueGroup)
+                Log.d(LogTag, "SUBTITLE $cueGroup")
+                subTitleView.text = cueGroup.cues.firstOrNull()?.text ?: ""
+            }
 
         }
 
@@ -176,6 +187,7 @@ fun VideoPlayer(
                 this.playWhenReady = playWhenReady
                 this.addListener(exoPlayerListener)
 
+
             }
     }
 
@@ -198,7 +210,59 @@ fun VideoPlayer(
         playerView.findViewById<TextView>(R.id.exo_title)
     }
 
+    val closeFullScreenDialog = {
+        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
+        (playerView.parent as ViewGroup).removeView(playerView)
+        parentFrame.addView(playerView)
+        fullScreenButton.setImageDrawable(
+            ContextCompat.getDrawable(
+                context, androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_enter
+            )
+        )
+        isFullscreen = false
+        fullScreenDialog?.dismiss()
+    }
+
+
+    val initFullScreenDialog = {
+        fullScreenDialog =
+            object :
+                Dialog(reactActivity, android.R.style.Theme_Black_NoTitleBar_Fullscreen) {
+                @Deprecated("Deprecated in Java")
+                override fun onBackPressed() {
+                    if (isFullscreen) closeFullScreenDialog()
+                    super.onBackPressed()
+                }
+
+                override fun onCreate(savedInstanceState: Bundle?) {
+                    super.onCreate(savedInstanceState)
+                    val windowInsetsController =
+                        window?.decorView?.let {
+                            WindowCompat.getInsetsController(window!!, it)
+                        }
+                    windowInsetsController?.systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    Log.i(LogTag,"windowInsetsController = $windowInsetsController")
+                    windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
+
+                    ViewCompat.setOnApplyWindowInsetsListener(window!!.decorView) { v, windowInsets ->
+                        Log.i(LogTag,"setOnApplyWindowInsetsListener = $windowInsets")
+                        if (windowInsets.isVisible(WindowInsetsCompat.Type.navigationBars())
+                            || windowInsets.isVisible(WindowInsetsCompat.Type.statusBars())){
+                            windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
+                        }
+
+
+                        ViewCompat.onApplyWindowInsets(v, windowInsets)
+                    }
+                }
+            }
+    }
+
+
+
     val openFullScreenDialog = {
+        initFullScreenDialog()
         fullScreenButton.setImageDrawable(
             ContextCompat.getDrawable(
                 context,
@@ -218,44 +282,12 @@ fun VideoPlayer(
         fullScreenDialog?.show()
     }
 
-    val closeFullScreenDialog = {
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
-        (playerView.parent as ViewGroup).removeView(playerView)
-        parentFrame.addView(playerView)
-        fullScreenButton.setImageDrawable(
-            ContextCompat.getDrawable(
-                context, androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_enter
-            )
-        )
-        isFullscreen = false
-        fullScreenDialog?.dismiss()
-    }
 
     val showTitle = {
         titleView.setText(title)
     }
 
 
-    val initFullScreenDialog = {
-        fullScreenDialog =
-            object :
-                Dialog(reactActivity, android.R.style.Theme_Black_NoTitleBar_Fullscreen) {
-                @Deprecated("Deprecated in Java")
-                override fun onBackPressed() {
-                    if (isFullscreen) closeFullScreenDialog()
-                    super.onBackPressed()
-                }
-
-                override fun onCreate(savedInstanceState: Bundle?) {
-                    super.onCreate(savedInstanceState)
-                    val windowInsetsController =
-                        window?.decorView?.let { WindowCompat.getInsetsController(window!!, it) }
-                    windowInsetsController?.systemBarsBehavior =
-                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                    windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
-                }
-            }
-    }
 
     val initFullScreenButton = {
         fullScreenButton.setOnClickListener {
@@ -268,7 +300,7 @@ fun VideoPlayer(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_CREATE) {
                 initFullScreenButton()
-                initFullScreenDialog()
+               // initFullScreenDialog()
                 showTitle()
             } else if (event == Lifecycle.Event.ON_START) {
                 if (exoPlayer.isPlaying.not()) {
@@ -312,7 +344,7 @@ fun VideoPlayer(
             update = {
                 it.player = exoPlayer
                 it.setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-                it.setControllerAnimationEnabled(true)
+                it.setControllerAnimationEnabled(false)
                 it.setShowFastForwardButton(true)
                 it.setShowRewindButton(true)
                 it.setShowNextButton(false)
@@ -323,6 +355,7 @@ fun VideoPlayer(
                     isControllerViible = it == View.VISIBLE
                 })
                 it.artworkDisplayMode = ARTWORK_DISPLAY_MODE_FILL
+                it.setShowSubtitleButton(true)
 
 
                 if (DeviceType.isTv(context)) {
