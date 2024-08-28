@@ -12,6 +12,7 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.annotation.OptIn
 import androidx.compose.foundation.focusable
@@ -30,8 +31,6 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.NativeKeyEvent
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
@@ -54,6 +53,7 @@ import androidx.media3.common.Metadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
+import androidx.media3.common.text.Cue.TEXT_SIZE_TYPE_ABSOLUTE
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
@@ -61,9 +61,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.PlayerView.ARTWORK_DISPLAY_MODE_FILL
+
 
 val LogTag = "NativeVideoPlayer"
 
@@ -74,9 +74,9 @@ fun VideoPlayer(
     reactActivity: Activity,
     parentFrame: FrameLayout,
     modifier: Modifier = Modifier,
-    title: String = "",
+    title: String = "Venus Tour",
     description: String = "",
-    artistName: String = "",
+    artistName: String = "Zara Larrason",
     artworkUrl: String = "",
     playWhenReady: Boolean = true,
     seekBackSeconds: Int = 5,
@@ -85,11 +85,8 @@ fun VideoPlayer(
     isLive: Boolean = false,
     resizeMode: Int = VideoResizeKeys.RESIZE_MODE_FIT,
     lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
-    onFullScreenToggle: (Boolean, Long) -> Unit = { _, _ -> },
     onIsPlayingChanged: (Boolean) -> Unit = {},
     onPlayerError: (Int) -> Unit = {},
-    onKeyEvent: (NativeKeyEvent) -> Unit = {},
-    onProgressChange: (Long) -> Unit = {},
 ) {
     val context = LocalContext.current
     val activity = reactActivity
@@ -129,7 +126,6 @@ fun VideoPlayer(
     }
     val exoPlayerListener = remember {
         object : Player.Listener {
-
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 onIsPlayingChanged(isPlaying)
                 Log.d(LogTag, "onIsPlayingChanged: $isPlaying")
@@ -209,6 +205,12 @@ fun VideoPlayer(
     val titleView = remember {
         playerView.findViewById<TextView>(R.id.exo_title)
     }
+    val artistView = remember {
+        playerView.findViewById<TextView>(R.id.exo_artist)
+    }
+    val liveIndicatorLayout=remember {
+        playerView.findViewById<LinearLayout>(R.id.live_indicator)
+    }
 
     val closeFullScreenDialog = {
         activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
@@ -222,7 +224,6 @@ fun VideoPlayer(
         isFullscreen = false
         fullScreenDialog?.dismiss()
     }
-
 
     val initFullScreenDialog = {
         fullScreenDialog =
@@ -259,8 +260,6 @@ fun VideoPlayer(
             }
     }
 
-
-
     val openFullScreenDialog = {
         initFullScreenDialog()
         fullScreenButton.setImageDrawable(
@@ -282,9 +281,13 @@ fun VideoPlayer(
         fullScreenDialog?.show()
     }
 
+    val setDetails = {
+        titleView.text = title
+        artistView.text = artistName
+    }
 
-    val showTitle = {
-        titleView.setText(title)
+    val setLiveIndicators={
+        liveIndicatorLayout.visibility=if(isLive) View.VISIBLE else View.GONE
     }
 
 
@@ -296,12 +299,20 @@ fun VideoPlayer(
         }
     }
 
+    val hideDefaultSubtitleView ={
+        playerView.subtitleView?.let{subtitleView ->
+            subtitleView.apply {
+                setFixedTextSize(TEXT_SIZE_TYPE_ABSOLUTE, 0F);
+            }
+        }
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_CREATE) {
                 initFullScreenButton()
-               // initFullScreenDialog()
-                showTitle()
+                setDetails()
+                setLiveIndicators()
             } else if (event == Lifecycle.Event.ON_START) {
                 if (exoPlayer.isPlaying.not()) {
                     exoPlayer.play()
@@ -376,6 +387,7 @@ fun VideoPlayer(
                     ).setFocusedBackground()
                 }
 
+                hideDefaultSubtitleView()
 
             },
             modifier = Modifier

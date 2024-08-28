@@ -30,6 +30,8 @@
             android:layout_gravity="bottom|center"
             android:layout_marginVertical="12dp"
             android:gravity="center"
+            android:fontFamily="@font/dm_sans_light"
+            android:textSize="10dp"
             android:textColor="#FFFFFF"
             tools:text="" />
     </FrameLayout>
@@ -170,8 +172,10 @@
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:layout_gravity="center"
+            android:layout_marginEnd="9dp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/exo_subtitle">
 
             <ImageView
                 android:id="@+id/exo_fullscreen_img"
@@ -179,9 +183,15 @@
                 android:layout_height="match_parent"
                 android:layout_gravity="center"
                 android:adjustViewBounds="true"
-                android:scaleType="fitCenter"
+                android:scaleType="centerInside"
                 android:src="@drawable/custom_controls_full_screen_closed" />
         </FrameLayout>
+
+        <ImageButton
+            android:id="@id/exo_subtitle"
+            style="@style/ExoStyledControls.Button.Bottom.CC"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/exo_fullscreen_button" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 
