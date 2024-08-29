@@ -18,6 +18,9 @@ import androidx.annotation.OptIn
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -26,11 +29,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
@@ -39,8 +45,15 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -61,6 +74,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.PlayerView.ARTWORK_DISPLAY_MODE_FILL
 
@@ -98,7 +112,9 @@ fun VideoPlayer(
     var fullScreenDialog by remember {
         mutableStateOf<Dialog?>(null)
     }
-
+    var caption by rememberSaveable {
+        mutableStateOf("")
+    }
 
     val mediaItem = remember {
         mutableStateOf(
@@ -151,10 +167,11 @@ fun VideoPlayer(
                 super.onTracksChanged(tracks)
                 Log.d(LogTag, "onTracksChanged: ${tracks.groups}")
             }
+
             override fun onCues(cueGroup: CueGroup) {
                 super.onCues(cueGroup)
                 Log.d(LogTag, "SUBTITLE $cueGroup")
-                subTitleView.text = cueGroup.cues.firstOrNull()?.text ?: ""
+                //caption = (cueGroup.cues.firstOrNull()?.text ?: "").toString()
             }
 
         }
@@ -208,7 +225,7 @@ fun VideoPlayer(
     val artistView = remember {
         playerView.findViewById<TextView>(R.id.exo_artist)
     }
-    val liveIndicatorLayout=remember {
+    val liveIndicatorLayout = remember {
         playerView.findViewById<LinearLayout>(R.id.live_indicator)
     }
 
@@ -243,13 +260,14 @@ fun VideoPlayer(
                         }
                     windowInsetsController?.systemBarsBehavior =
                         WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                    Log.i(LogTag,"windowInsetsController = $windowInsetsController")
+                    Log.i(LogTag, "windowInsetsController = $windowInsetsController")
                     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
 
                     ViewCompat.setOnApplyWindowInsetsListener(window!!.decorView) { v, windowInsets ->
-                        Log.i(LogTag,"setOnApplyWindowInsetsListener = $windowInsets")
+                        Log.i(LogTag, "setOnApplyWindowInsetsListener = $windowInsets")
                         if (windowInsets.isVisible(WindowInsetsCompat.Type.navigationBars())
-                            || windowInsets.isVisible(WindowInsetsCompat.Type.statusBars())){
+                            || windowInsets.isVisible(WindowInsetsCompat.Type.statusBars())
+                        ) {
                             windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
                         }
 
@@ -286,10 +304,9 @@ fun VideoPlayer(
         artistView.text = artistName
     }
 
-    val setLiveIndicators={
-        liveIndicatorLayout.visibility=if(isLive) View.VISIBLE else View.GONE
+    val setLiveIndicators = {
+        liveIndicatorLayout.visibility = if (isLive) View.VISIBLE else View.GONE
     }
-
 
 
     val initFullScreenButton = {
@@ -299,10 +316,24 @@ fun VideoPlayer(
         }
     }
 
-    val hideDefaultSubtitleView ={
-        playerView.subtitleView?.let{subtitleView ->
+    val configureDefaultSubtitleView = {
+        playerView.subtitleView?.let { subtitleView ->
             subtitleView.apply {
-                setFixedTextSize(TEXT_SIZE_TYPE_ABSOLUTE, 0F);
+                val style = CaptionStyleCompat(
+                    Color.White.toArgb(),
+                    Color.Transparent.toArgb(),
+                    Color.Transparent.toArgb(),
+                    CaptionStyleCompat.EDGE_TYPE_RAISED,
+                    Color.Transparent.toArgb(),
+                    ResourcesCompat.getFont(reactActivity, R.font.dm_sans_light)
+                )
+                //get the subtitleView reference from the StyledPlayerView
+                setApplyEmbeddedFontSizes(false)
+                setApplyEmbeddedStyles(false)
+                setBottomPaddingFraction(2F) // padding from the bottom
+                setStyle(style)
+                setFixedTextSize(TEXT_SIZE_TYPE_ABSOLUTE, if(isFullscreen) 20f else 13f);
+
             }
         }
     }
@@ -339,6 +370,7 @@ fun VideoPlayer(
     }
 
     Box(
+        contentAlignment = Alignment.BottomCenter,
         modifier = modifier.onNotVisible {
             Log.i(LogTag, "onNotVisible on screen called")
             if (isInListItem) {
@@ -361,7 +393,8 @@ fun VideoPlayer(
                 it.setShowNextButton(false)
                 it.setShowPreviousButton(false)
                 it.showController()
-                it.setResizeMode(resizeMode.asAspectRatioFrameLayoutResizeMode())
+                // it.setResizeMode(resizeMode.asAspectRatioFrameLayoutResizeMode())
+                it.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL)
                 it.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener {
                     isControllerViible = it == View.VISIBLE
                 })
@@ -387,7 +420,7 @@ fun VideoPlayer(
                     ).setFocusedBackground()
                 }
 
-                hideDefaultSubtitleView()
+                configureDefaultSubtitleView()
 
             },
             modifier = Modifier
@@ -408,6 +441,18 @@ fun VideoPlayer(
                     }
                 }
                 .focusRequester(focusRequester),
+        )
+
+        Text(
+            text = caption,
+            textAlign = TextAlign.Center,
+            fontSize = 10.sp,
+            color = Color.White,
+            fontFamily = FontFamily(listOf(Font(R.font.dm_sans_light))),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp)
+                .zIndex(3f)
         )
 
     }
