@@ -153,16 +153,6 @@ fun VideoPlayer(
                 Log.e(LogTag, "PlaybackException Occurred: ${error.message} caused by $cause")
             }
 
-            override fun onMetadata(metadata: Metadata) {
-                super.onMetadata(metadata)
-                Log.d(LogTag, "onMetadata: ${metadata}")
-            }
-
-            override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-                super.onMediaMetadataChanged(mediaMetadata)
-                Log.d(LogTag, "onMediaMetadataChanged: ${mediaMetadata}")
-            }
-
             override fun onTracksChanged(tracks: Tracks) {
                 super.onTracksChanged(tracks)
                 Log.d(LogTag, "onTracksChanged: ${tracks.groups}")
@@ -310,6 +300,7 @@ fun VideoPlayer(
 
 
     val initFullScreenButton = {
+        if(!DeviceType.isTv(context))
         fullScreenButton.setOnClickListener {
             if (isFullscreen) closeFullScreenDialog()
             else openFullScreenDialog()
@@ -404,19 +395,23 @@ fun VideoPlayer(
 
                 if (DeviceType.isTv(context)) {
                     val playPauseButton =
-                        it.findViewById<ImageButton>(androidx.media3.ui.R.id.exo_play_pause)
+                        it.findViewById<ImageButton>(R.id.exo_play_pause)
                     val rewindButton =
-                        it.findViewById<Button>(androidx.media3.ui.R.id.exo_rew_with_amount)
+                        it.findViewById<Button>(R.id.exo_rew_with_amount)
                     val forwardButton =
-                        it.findViewById<Button>(androidx.media3.ui.R.id.exo_ffwd_with_amount)
+                        it.findViewById<Button>(R.id.exo_ffwd_with_amount)
                     val settingsButton =
-                        it.findViewById<ImageButton>(androidx.media3.ui.R.id.exo_settings)
+                        it.findViewById<ImageButton>(R.id.exo_settings)
+                    val captionsButton =
+                        it.findViewById<ImageButton>(R.id.exo_subtitle)
+
 
                     listOf(
                         playPauseButton,
                         rewindButton,
                         forwardButton,
-                        settingsButton
+                        settingsButton,
+                        captionsButton
                     ).setFocusedBackground()
                 }
 
