@@ -29,10 +29,10 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|center"
             android:layout_marginVertical="12dp"
-            android:gravity="center"
             android:fontFamily="@font/dm_sans_light"
-            android:textSize="10dp"
+            android:gravity="center"
             android:textColor="#FFFFFF"
+            android:textSize="10dp"
             tools:text="" />
     </FrameLayout>
 
@@ -162,9 +162,20 @@
                 android:orientation="horizontal">
 
                 <ImageButton
+                    android:id="@+id/exo_subtitle_custom"
+                    style="@style/ExoStyledControls.Button.Bottom.Settings"
+                    android:src="@drawable/custom_controls_caption" />
+
+                <ImageButton
+                    android:id="@+id/exo_audio_custom"
+                    style="@style/ExoStyledControls.Button.Bottom.Settings"
+                    android:src="@drawable/custom_controls_audio" />
+
+                <ImageButton
                     android:id="@+id/exo_settings_custom"
-                    android:src="@drawable/custom_controls_settings"
-                    style="@style/ExoStyledControls.Button.Bottom.Settings" />
+                    style="@style/ExoStyledControls.Button.Bottom.Settings"
+                    android:src="@drawable/custom_controls_settings" />
+
             </LinearLayout>
         </LinearLayout>
 

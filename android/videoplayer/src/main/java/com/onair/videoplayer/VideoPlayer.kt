@@ -133,9 +133,7 @@ fun VideoPlayer(
     val playerView = remember {
         PlayerView(context)
     }
-    val subTitleView = remember {
-        playerView.findViewById<TextView>(R.id.customSubtitle)
-    }
+
     val exoPlayerListener = remember {
         object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -213,6 +211,15 @@ fun VideoPlayer(
     val fullScreenButton = remember {
         playerView.findViewById<ImageView>(R.id.exo_fullscreen_img)
     }
+    val settingsButton = remember {
+        playerView.findViewById<ImageView>(R.id.exo_settings_custom)
+    }
+    val subtitleButton = remember {
+        playerView.findViewById<ImageView>(R.id.exo_subtitle_custom)
+    }
+    val audioTrackButton = remember {
+        playerView.findViewById<ImageView>(R.id.exo_audio_custom)
+    }
     val titleView = remember {
         playerView.findViewById<TextView>(R.id.exo_title)
     }
@@ -221,6 +228,9 @@ fun VideoPlayer(
     }
     val liveIndicatorLayout = remember {
         playerView.findViewById<LinearLayout>(R.id.live_indicator)
+    }
+    val playPauseButton = remember {
+        playerView.findViewById<ImageButton>(R.id.exo_play_pause)
     }
 
     val closeFullScreenDialog = {
@@ -364,6 +374,18 @@ fun VideoPlayer(
         }
     }
 
+    LaunchedEffect(isFullscreen) {
+        if (isFullscreen) {
+            settingsButton.visibility = View.GONE
+            audioTrackButton.visibility = View.VISIBLE
+            subtitleButton.visibility = View.VISIBLE
+        } else {
+            settingsButton.visibility = View.VISIBLE
+            audioTrackButton.visibility = View.GONE
+            subtitleButton.visibility = View.GONE
+        }
+    }
+
     Box(
         contentAlignment = Alignment.BottomCenter,
         modifier = modifier.onNotVisible {
@@ -398,16 +420,10 @@ fun VideoPlayer(
 
 
                 if (DeviceType.isTv(context)) {
-                    val playPauseButton =
-                        it.findViewById<ImageButton>(R.id.exo_play_pause)
                     val rewindButton =
                         it.findViewById<Button>(R.id.exo_rew_with_amount)
                     val forwardButton =
                         it.findViewById<Button>(R.id.exo_ffwd_with_amount)
-                    val settingsButton =
-                        it.findViewById<ImageButton>(R.id.exo_settings_custom)
-                    val captionsButton =
-                        it.findViewById<ImageButton>(R.id.exo_subtitle_custom)
 
 
                     listOf(
@@ -415,7 +431,7 @@ fun VideoPlayer(
                         rewindButton,
                         forwardButton,
                         settingsButton,
-                        captionsButton
+                        subtitleButton
                     ).setFocusedBackground()
                 }
 
@@ -450,6 +466,7 @@ fun VideoPlayer(
                 .padding(10.dp)
                 .zIndex(3f)
         )
+
 
     }
     LaunchedEffect(Unit) {
