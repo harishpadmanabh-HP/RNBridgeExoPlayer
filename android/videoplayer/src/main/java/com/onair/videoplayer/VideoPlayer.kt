@@ -2,11 +2,9 @@ package com.onair.videoplayer
 
 import android.app.Activity
 import android.app.Dialog
-import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration.ORIENTATION_LANDSCAPE
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -32,19 +30,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -71,14 +64,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.exoplayer.source.TrackGroupArray
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
-import androidx.media3.ui.DefaultTrackNameProvider
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.PlayerView.ARTWORK_DISPLAY_MODE_FILL
-import com.google.common.collect.ImmutableList
 
 
 val LogTag = "NativeVideoPlayer"
@@ -156,12 +146,12 @@ fun VideoPlayer(
             override fun onPlayerError(error: PlaybackException) {
                 onPlayerError(error.errorCode)
                 val cause = error.cause
-               // Log.e(LogTag, "PlaybackException Occurred: ${error.message} caused by $cause")
+                // Log.e(LogTag, "PlaybackException Occurred: ${error.message} caused by $cause")
             }
 
             override fun onTracksChanged(tracks: Tracks) {
                 super.onTracksChanged(tracks)
-              //  Log.d(LogTag, "onTracksChanged: ${tracks.groups}")
+                //  Log.d(LogTag, "onTracksChanged: ${tracks.groups}")
             }
 
             override fun onCues(cueGroup: CueGroup) {
@@ -173,7 +163,7 @@ fun VideoPlayer(
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
                     // ExoPlayer is ready; you can access track information now
-                    isplayerReady=true
+                    isplayerReady = true
 
                 }
             }
@@ -211,7 +201,7 @@ fun VideoPlayer(
     val releasePlayer = {
         exoPlayer.removeListener(exoPlayerListener)
         exoPlayer.release()
-      //  Log.i(LogTag, "Player released")
+        //  Log.i(LogTag, "Player released")
     }
 
 
@@ -268,7 +258,7 @@ fun VideoPlayer(
                     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
 
                     ViewCompat.setOnApplyWindowInsetsListener(window!!.decorView) { v, windowInsets ->
-                       // Log.i(LogTag, "setOnApplyWindowInsetsListener = $windowInsets")
+                        // Log.i(LogTag, "setOnApplyWindowInsetsListener = $windowInsets")
                         if (windowInsets.isVisible(WindowInsetsCompat.Type.navigationBars())
                             || windowInsets.isVisible(WindowInsetsCompat.Type.statusBars())
                         ) {
@@ -314,11 +304,11 @@ fun VideoPlayer(
 
 
     val initFullScreenButton = {
-        if(!DeviceType.isTv(context))
-        fullScreenButton.setOnClickListener {
-            if (isFullscreen) closeFullScreenDialog()
-            else openFullScreenDialog()
-        }
+        if (!DeviceType.isTv(context))
+            fullScreenButton.setOnClickListener {
+                if (isFullscreen) closeFullScreenDialog()
+                else openFullScreenDialog()
+            }
     }
 
     val configureDefaultSubtitleView = {
@@ -337,7 +327,7 @@ fun VideoPlayer(
                 setApplyEmbeddedStyles(false)
                 setBottomPaddingFraction(2F) // padding from the bottom
                 setStyle(style)
-                setFixedTextSize(TEXT_SIZE_TYPE_ABSOLUTE, if(isFullscreen) 20f else 13f);
+                setFixedTextSize(TEXT_SIZE_TYPE_ABSOLUTE, if (isFullscreen) 20f else 13f);
 
             }
         }
@@ -362,7 +352,7 @@ fun VideoPlayer(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-           // Log.i(LogTag, "Dispose release lifecycle observer")
+            // Log.i(LogTag, "Dispose release lifecycle observer")
         }
     }
 
@@ -377,7 +367,7 @@ fun VideoPlayer(
     Box(
         contentAlignment = Alignment.BottomCenter,
         modifier = modifier.onNotVisible {
-           // Log.i(LogTag, "onNotVisible on screen called")
+            // Log.i(LogTag, "onNotVisible on screen called")
             if (isInListItem) {
                 releasePlayer()
             }
@@ -415,9 +405,9 @@ fun VideoPlayer(
                     val forwardButton =
                         it.findViewById<Button>(R.id.exo_ffwd_with_amount)
                     val settingsButton =
-                        it.findViewById<ImageButton>(R.id.exo_settings)
+                        it.findViewById<ImageButton>(R.id.exo_settings_custom)
                     val captionsButton =
-                        it.findViewById<ImageButton>(R.id.exo_subtitle)
+                        it.findViewById<ImageButton>(R.id.exo_subtitle_custom)
 
 
                     listOf(
@@ -466,66 +456,13 @@ fun VideoPlayer(
         focusRequester.requestFocus()
     }
     LaunchedEffect(isplayerReady) {
-        getSubtitleTracks(exoPlayer,context)
-    }
-
-
-}
-
-fun Modifier.onNotVisible(onNotVisible: () -> Unit): Modifier = composed {
-    val view = LocalView.current
-    var isVisible: Boolean? by remember { mutableStateOf(null) }
-
-    if (isVisible == true) {
-        LaunchedEffect(isVisible) {
-            onNotVisible()
-        }
-    }
-
-    onGloballyPositioned { coordinates ->
-        isVisible = coordinates.isCompletelyVisible(view)
+        getTrackOfType(exoPlayer, context, C.TRACK_TYPE_AUDIO)
+        getTrackOfType(exoPlayer, context, C.TRACK_TYPE_TEXT)
+        getTrackOfType(exoPlayer, context, C.TRACK_TYPE_VIDEO)
+        applySelectedSubtitleTrack(exoPlayer, "en") // For English subtitles
     }
 }
 
-fun LayoutCoordinates.isCompletelyVisible(view: View): Boolean {
-    if (!isAttached) return false
-    // Window relative bounds of our compose root view that are visible on the screen
-    val globalRootRect = android.graphics.Rect()
-    if (!view.getGlobalVisibleRect(globalRootRect)) {
-        //Log.i(LogTag, "View is not visible at all")
-        // we aren't visible at all.
-        return false
-    }
-    val bounds = boundsInWindow()
-    // Make sure we are completely in bounds.
-    return bounds.top >= globalRootRect.top &&
-            bounds.left >= globalRootRect.left &&
-            bounds.right <= globalRootRect.right &&
-            bounds.bottom <= globalRootRect.bottom
-}
-
-fun List<View>.setFocusedBackground() {
-    forEach { view ->
-        view.setOnFocusChangeListener { v, hasFocus ->
-            if (hasFocus)
-                v.setBackgroundResource(R.drawable.focus_indicator)
-            else
-                v.setBackgroundResource(0)
-        }
-    }
-}
-
-@OptIn(UnstableApi::class)
-fun Int.asAspectRatioFrameLayoutResizeMode() = when (this) {
-    VideoResizeKeys.RESIZE_MODE_FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-    VideoResizeKeys.RESIZE_MODE_FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-    VideoResizeKeys.RESIZE_MODE_ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-    VideoResizeKeys.RESIZE_MODE_FIXED_WIDTH -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
-    VideoResizeKeys.RESIZE_MODE_FIXED_HEIGHT -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_HEIGHT
-    else -> {
-        AspectRatioFrameLayout.RESIZE_MODE_FIT
-    }
-}
 
 
 

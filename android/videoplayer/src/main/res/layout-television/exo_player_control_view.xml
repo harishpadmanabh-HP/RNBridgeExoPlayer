@@ -161,11 +161,11 @@
                 android:gravity="end"
                 android:orientation="horizontal">
                 <ImageButton
-                    android:id="@id/exo_subtitle"
+                    android:id="@+id/exo_subtitle_custom"
                     style="@style/ExoStyledControls.Button.Bottom.CC"
                     app:layout_constraintBottom_toBottomOf="parent"/>
                 <ImageButton
-                    android:id="@id/exo_settings"
+                    android:id="@+id/exo_settings_custom"
                     style="@style/ExoStyledControls.Button.Bottom.Settings" />
             </LinearLayout>
         </LinearLayout>

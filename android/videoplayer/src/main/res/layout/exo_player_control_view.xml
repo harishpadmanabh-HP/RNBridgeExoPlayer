@@ -162,7 +162,8 @@
                 android:orientation="horizontal">
 
                 <ImageButton
-                    android:id="@id/exo_settings"
+                    android:id="@+id/exo_settings_custom"
+                    android:src="@drawable/custom_controls_settings"
                     style="@style/ExoStyledControls.Button.Bottom.Settings" />
             </LinearLayout>
         </LinearLayout>
@@ -187,11 +188,7 @@
                 android:src="@drawable/custom_controls_full_screen_closed" />
         </FrameLayout>
 
-        <ImageButton
-            android:id="@id/exo_subtitle"
-            style="@style/ExoStyledControls.Button.Bottom.CC"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/exo_fullscreen_button" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 
