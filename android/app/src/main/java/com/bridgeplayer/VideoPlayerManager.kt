@@ -1,7 +1,7 @@
 package com.bridgeplayer
 
+import android.view.View
 import android.widget.FrameLayout
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
@@ -25,6 +25,7 @@ class VideoPlayerManager(private val reactContext: ReactApplicationContext) :
         return FrameLayout(reactContext).apply {
             val composeView = ComposeView(reactContext)
             this.addView(composeView)
+            this.id = View.generateViewId()
         }
     }
 

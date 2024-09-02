@@ -2,6 +2,7 @@ package com.onair.videoplayer
 
 import android.app.Activity
 import android.app.Dialog
+import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration.ORIENTATION_LANDSCAPE
 import android.os.Bundle
@@ -34,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.key.onKeyEvent
@@ -61,8 +61,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
-import androidx.media3.common.MediaMetadata
-import androidx.media3.common.Metadata
+import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
@@ -72,11 +71,14 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.TrackGroupArray
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
+import androidx.media3.ui.DefaultTrackNameProvider
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.PlayerView.ARTWORK_DISPLAY_MODE_FILL
+import com.google.common.collect.ImmutableList
 
 
 val LogTag = "NativeVideoPlayer"
@@ -133,6 +135,10 @@ fun VideoPlayer(
         }
     }
 
+    var isplayerReady by remember {
+        mutableStateOf(false)
+    }
+
 
     val playerView = remember {
         PlayerView(context)
@@ -144,24 +150,32 @@ fun VideoPlayer(
         object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 onIsPlayingChanged(isPlaying)
-                Log.d(LogTag, "onIsPlayingChanged: $isPlaying")
+                //Log.d(LogTag, "onIsPlayingChanged: $isPlaying")
             }
 
             override fun onPlayerError(error: PlaybackException) {
                 onPlayerError(error.errorCode)
                 val cause = error.cause
-                Log.e(LogTag, "PlaybackException Occurred: ${error.message} caused by $cause")
+               // Log.e(LogTag, "PlaybackException Occurred: ${error.message} caused by $cause")
             }
 
             override fun onTracksChanged(tracks: Tracks) {
                 super.onTracksChanged(tracks)
-                Log.d(LogTag, "onTracksChanged: ${tracks.groups}")
+              //  Log.d(LogTag, "onTracksChanged: ${tracks.groups}")
             }
 
             override fun onCues(cueGroup: CueGroup) {
                 super.onCues(cueGroup)
-                Log.d(LogTag, "SUBTITLE $cueGroup")
+                //Log.d(LogTag, "SUBTITLE $cueGroup")
                 //caption = (cueGroup.cues.firstOrNull()?.text ?: "").toString()
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    // ExoPlayer is ready; you can access track information now
+                    isplayerReady=true
+
+                }
             }
 
         }
@@ -197,7 +211,7 @@ fun VideoPlayer(
     val releasePlayer = {
         exoPlayer.removeListener(exoPlayerListener)
         exoPlayer.release()
-        Log.i(LogTag, "Player released")
+      //  Log.i(LogTag, "Player released")
     }
 
 
@@ -250,11 +264,11 @@ fun VideoPlayer(
                         }
                     windowInsetsController?.systemBarsBehavior =
                         WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                    Log.i(LogTag, "windowInsetsController = $windowInsetsController")
+                    //Log.i(LogTag, "windowInsetsController = $windowInsetsController")
                     windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
 
                     ViewCompat.setOnApplyWindowInsetsListener(window!!.decorView) { v, windowInsets ->
-                        Log.i(LogTag, "setOnApplyWindowInsetsListener = $windowInsets")
+                       // Log.i(LogTag, "setOnApplyWindowInsetsListener = $windowInsets")
                         if (windowInsets.isVisible(WindowInsetsCompat.Type.navigationBars())
                             || windowInsets.isVisible(WindowInsetsCompat.Type.statusBars())
                         ) {
@@ -348,13 +362,13 @@ fun VideoPlayer(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            Log.i(LogTag, "Dispose release lifecycle observer")
+           // Log.i(LogTag, "Dispose release lifecycle observer")
         }
     }
 
     LaunchedEffect(configuration.orientation) {
         orientation = configuration.orientation
-        Log.i(LogTag, "Orientation changed: $orientation isFullscreen: $isFullscreen")
+        //Log.i(LogTag, "Orientation changed: $orientation isFullscreen: $isFullscreen")
         if (orientation == ORIENTATION_LANDSCAPE && !isFullscreen && exoPlayer.isPlaying) {
             openFullScreenDialog()
         }
@@ -363,7 +377,7 @@ fun VideoPlayer(
     Box(
         contentAlignment = Alignment.BottomCenter,
         modifier = modifier.onNotVisible {
-            Log.i(LogTag, "onNotVisible on screen called")
+           // Log.i(LogTag, "onNotVisible on screen called")
             if (isInListItem) {
                 releasePlayer()
             }
@@ -424,9 +438,6 @@ fun VideoPlayer(
                     enabled = true,
                     interactionSource = interactionSource
                 )
-                .onFocusChanged {
-                    Log.i(LogTag, "onFocusChanged: ${it.hasFocus}")
-                }
                 .onKeyEvent {
                     if (isControllerViible)
                         playerView.dispatchKeyEvent(it.nativeKeyEvent)
@@ -454,6 +465,9 @@ fun VideoPlayer(
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
+    LaunchedEffect(isplayerReady) {
+        getSubtitleTracks(exoPlayer,context)
+    }
 
 
 }
@@ -478,7 +492,7 @@ fun LayoutCoordinates.isCompletelyVisible(view: View): Boolean {
     // Window relative bounds of our compose root view that are visible on the screen
     val globalRootRect = android.graphics.Rect()
     if (!view.getGlobalVisibleRect(globalRootRect)) {
-        Log.i(LogTag, "View is not visible at all")
+        //Log.i(LogTag, "View is not visible at all")
         // we aren't visible at all.
         return false
     }
@@ -512,8 +526,6 @@ fun Int.asAspectRatioFrameLayoutResizeMode() = when (this) {
         AspectRatioFrameLayout.RESIZE_MODE_FIT
     }
 }
-
-
 
 
 
