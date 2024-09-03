@@ -170,6 +170,10 @@
                     android:id="@+id/exo_audio_custom"
                     style="@style/ExoStyledControls.Button.Bottom.Settings"
                     android:src="@drawable/custom_controls_audio" />
+                <ImageButton
+                    android:id="@+id/exo_pip_custom"
+                    style="@style/ExoStyledControls.Button.Bottom.Settings"
+                    android:src="@drawable/custom_controls_pip" />
 
                 <ImageButton
                     android:id="@+id/exo_settings_custom"
@@ -187,7 +191,7 @@
             android:layout_marginEnd="9dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/exo_subtitle">
+            >
 
             <ImageView
                 android:id="@+id/exo_fullscreen_img"
@@ -197,6 +201,47 @@
                 android:adjustViewBounds="true"
                 android:scaleType="centerInside"
                 android:src="@drawable/custom_controls_full_screen_closed" />
+        </FrameLayout>
+
+        <FrameLayout
+            style="@style/ExoStyledControls.Button.Center"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="0dp"
+            android:addStatesFromChildren="true"
+            app:layout_constraintBottom_toBottomOf="@+id/exo_play_pause"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/exo_play_pause"
+            app:layout_constraintTop_toTopOf="@+id/exo_play_pause">
+
+            <Button
+                android:id="@+id/exo_ffwd_custom"
+                style="@style/ExoStyledControls.Button.Center.FfwdWithAmount"
+                android:layout_marginLeft="0dp"
+                android:layout_marginRight="0dp"
+                android:background="@drawable/exo_styled_controls_fastforward"
+                android:singleLine="false" />
+
+        </FrameLayout>
+
+        <FrameLayout
+            style="@style/ExoStyledControls.Button.Center"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="0dp"
+            android:addStatesFromChildren="true"
+            app:layout_constraintBottom_toBottomOf="@+id/exo_play_pause"
+            app:layout_constraintEnd_toStartOf="@+id/exo_play_pause"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/exo_play_pause">
+
+            <Button
+                android:id="@+id/exo_rew_custom"
+                style="@style/ExoStyledControls.Button.Center.RewWithAmount"
+                android:layout_marginLeft="0dp"
+                android:layout_marginRight="0dp"
+                android:background="@drawable/exo_styled_controls_rewind"
+                android:singleLine="false" />
         </FrameLayout>
 
 

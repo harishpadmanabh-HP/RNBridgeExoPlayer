@@ -232,6 +232,15 @@ fun VideoPlayer(
     val playPauseButton = remember {
         playerView.findViewById<ImageButton>(R.id.exo_play_pause)
     }
+    val pipButton = remember {
+        playerView.findViewById<ImageButton>(R.id.exo_pip_custom)
+    }
+    val rewindButton = remember {
+        playerView.findViewById<Button>(R.id.exo_rew_custom)
+    }
+    val forwardButton = remember {
+        playerView.findViewById<Button>(R.id.exo_ffwd_custom)
+    }
 
     val closeFullScreenDialog = {
         activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
@@ -313,12 +322,37 @@ fun VideoPlayer(
     }
 
 
-    val initFullScreenButton = {
-        if (!DeviceType.isTv(context))
+    val configureControlButtons = {
+        if (!DeviceType.isTv(context)) {
             fullScreenButton.setOnClickListener {
                 if (isFullscreen) closeFullScreenDialog()
                 else openFullScreenDialog()
             }
+            rewindButton.setOnClickListener {
+                exoPlayer.seekBack()
+            }
+            forwardButton.setOnClickListener {
+                exoPlayer.seekForward()
+            }
+
+        }
+
+        if (!DeviceType.isTv(context))
+            settingsButton.setOnClickListener {
+
+            }
+
+        subtitleButton.setOnClickListener {
+
+        }
+        audioTrackButton.setOnClickListener {
+
+        }
+        pipButton.setOnClickListener {
+
+        }
+
+
     }
 
     val configureDefaultSubtitleView = {
@@ -343,10 +377,45 @@ fun VideoPlayer(
         }
     }
 
+
+
+    LaunchedEffect(configuration.orientation) {
+        orientation = configuration.orientation
+        //Log.i(LogTag, "Orientation changed: $orientation isFullscreen: $isFullscreen")
+        if (orientation == ORIENTATION_LANDSCAPE && !isFullscreen && exoPlayer.isPlaying) {
+            openFullScreenDialog()
+        }
+    }
+
+    //Handle control button visibility for portrait and landscape
+    LaunchedEffect(isFullscreen) {
+        if(DeviceType.isTv(context)){
+            audioTrackButton.isVisible(true)
+            subtitleButton.isVisible(true)
+            pipButton.isVisible(true)
+        }else{
+            if(isFullscreen){
+                settingsButton.isVisible(false)
+                rewindButton.isVisible(true)
+                forwardButton.isVisible(true)
+                audioTrackButton.isVisible(true)
+                subtitleButton.isVisible(true)
+                pipButton.isVisible(true)
+            }else{
+                settingsButton.isVisible(true)
+                rewindButton.isVisible(false)
+                forwardButton.isVisible(false)
+                audioTrackButton.isVisible(false)
+                subtitleButton.isVisible(false)
+                pipButton.isVisible(false)
+            }
+        }
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_CREATE) {
-                initFullScreenButton()
+                configureControlButtons()
                 setDetails()
                 setLiveIndicators()
             } else if (event == Lifecycle.Event.ON_START) {
@@ -366,34 +435,9 @@ fun VideoPlayer(
         }
     }
 
-    LaunchedEffect(configuration.orientation) {
-        orientation = configuration.orientation
-        //Log.i(LogTag, "Orientation changed: $orientation isFullscreen: $isFullscreen")
-        if (orientation == ORIENTATION_LANDSCAPE && !isFullscreen && exoPlayer.isPlaying) {
-            openFullScreenDialog()
-        }
-    }
-
-    LaunchedEffect(isFullscreen) {
-        if (isFullscreen) {
-            settingsButton.visibility = View.GONE
-            audioTrackButton.visibility = View.VISIBLE
-            subtitleButton.visibility = View.VISIBLE
-        } else {
-            settingsButton.visibility = View.VISIBLE
-            audioTrackButton.visibility = View.GONE
-            subtitleButton.visibility = View.GONE
-        }
-    }
-
     Box(
         contentAlignment = Alignment.BottomCenter,
-        modifier = modifier.onNotVisible {
-            // Log.i(LogTag, "onNotVisible on screen called")
-            if (isInListItem) {
-                releasePlayer()
-            }
-        }
+        modifier = modifier
     ) {
         AndroidView(
             factory = {
@@ -418,20 +462,17 @@ fun VideoPlayer(
                 it.artworkDisplayMode = ARTWORK_DISPLAY_MODE_FILL
                 it.setShowSubtitleButton(true)
 
+                val tvRewind = it.findViewById<Button>(R.id.exo_rew_with_amount)
+                val tvForward = it.findViewById<Button>(R.id.exo_ffwd_with_amount)
 
                 if (DeviceType.isTv(context)) {
-                    val rewindButton =
-                        it.findViewById<Button>(R.id.exo_rew_with_amount)
-                    val forwardButton =
-                        it.findViewById<Button>(R.id.exo_ffwd_with_amount)
-
-
                     listOf(
                         playPauseButton,
-                        rewindButton,
-                        forwardButton,
-                        settingsButton,
-                        subtitleButton
+                        tvRewind,
+                        tvForward,
+                        subtitleButton,
+                        pipButton,
+                        audioTrackButton
                     ).setFocusedBackground()
                 }
 

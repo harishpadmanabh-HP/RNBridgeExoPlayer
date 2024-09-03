@@ -15,6 +15,7 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalView
+import androidx.core.view.isVisible
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -23,6 +24,12 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.DefaultTrackNameProvider
 
+ fun View.isVisible(visible: Boolean){
+    if(visible)
+        this.visibility = View.VISIBLE
+    else
+        this.visibility = View.GONE
+}
 
 @OptIn(UnstableApi::class)
 fun getTrackOfType(player: ExoPlayer, context: Context, trackType:Int): List<Pair<String, String>> {

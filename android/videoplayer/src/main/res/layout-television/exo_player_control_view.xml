@@ -162,11 +162,18 @@
                 android:orientation="horizontal">
                 <ImageButton
                     android:id="@+id/exo_subtitle_custom"
-                    style="@style/ExoStyledControls.Button.Bottom.CC"
-                    app:layout_constraintBottom_toBottomOf="parent"/>
+                    style="@style/ExoStyledControls.Button.Bottom.Settings"
+                    android:src="@drawable/custom_controls_caption" />
+
                 <ImageButton
-                    android:id="@+id/exo_settings_custom"
-                    style="@style/ExoStyledControls.Button.Bottom.Settings" />
+                    android:id="@+id/exo_audio_custom"
+                    style="@style/ExoStyledControls.Button.Bottom.Settings"
+                    android:src="@drawable/custom_controls_audio" />
+                <ImageButton
+                    android:id="@+id/exo_pip_custom"
+                    style="@style/ExoStyledControls.Button.Bottom.Settings"
+                    android:src="@drawable/custom_controls_pip" />
+
             </LinearLayout>
         </LinearLayout>
 
