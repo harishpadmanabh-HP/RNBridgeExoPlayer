@@ -15,8 +15,8 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalView
-import androidx.core.view.isVisible
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.TrackGroupArray
@@ -24,19 +24,19 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.DefaultTrackNameProvider
 
- fun View.isVisible(visible: Boolean){
-    if(visible)
+fun View.isVisible(visible: Boolean) {
+    if (visible)
         this.visibility = View.VISIBLE
     else
         this.visibility = View.GONE
 }
 
 @OptIn(UnstableApi::class)
-fun getTrackOfType(player: ExoPlayer, context: Context, trackType:Int): List<Pair<String, String>> {
+fun getTrackOfType(player: ExoPlayer, context: Context, trackType: Int): List<Format> {
     val trackSelector = player.trackSelector as? DefaultTrackSelector ?: return emptyList()
     val mappedTrackInfo = trackSelector.currentMappedTrackInfo ?: return emptyList()
 
-    val subtitles = mutableListOf<Pair<String, String>>()
+    val subtitles = mutableListOf<Format>()
 
     // Iterate over each renderer, find text tracks (subtitle tracks)
     for (rendererIndex in 0 until mappedTrackInfo.rendererCount) {
@@ -49,7 +49,7 @@ fun getTrackOfType(player: ExoPlayer, context: Context, trackType:Int): List<Pai
                     val format = trackGroup.getFormat(trackIndex)
                     val language = format.language ?: "Unknown Language"
                     val mimeType = format.sampleMimeType ?: "Unknown Format"
-                    subtitles.add(Pair(language, mimeType))
+                    subtitles.add(format)
                     val name = DefaultTrackNameProvider(context.resources)
                     Log.i(LogTag, "Tacks Available: ${name.getTrackName(format)}")
                 }
@@ -68,7 +68,12 @@ fun applySelectedSubtitleTrack(player: ExoPlayer, language: String?) {
 
     // Disable subtitles if no language is selected
     if (language.isNullOrEmpty()) {
-        parametersBuilder.setRendererDisabled(C.TRACK_TYPE_TEXT, true)  // Disable text tracks
+        parametersBuilder
+            .setRendererDisabled(C.TRACK_TYPE_TEXT, true)  // Disable text tracks
+            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            .setIgnoredTextSelectionFlags(C.SELECTION_FLAG_FORCED)
+            .setPreferredTextLanguage(null)
+
     } else {
         // Set the preferred subtitle language
         parametersBuilder.setPreferredTextLanguage(language)
@@ -76,7 +81,7 @@ fun applySelectedSubtitleTrack(player: ExoPlayer, language: String?) {
     }
 
     // Apply the updated track selection parameters
-    trackSelector.setParameters(parametersBuilder)
+    trackSelector.setParameters(parametersBuilder.build())
 }
 
 

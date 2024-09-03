@@ -17,18 +17,16 @@ import androidx.annotation.OptIn
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -38,11 +36,6 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
@@ -55,6 +48,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
@@ -95,7 +89,6 @@ fun VideoPlayer(
     onPlayerError: (Int) -> Unit = {},
 ) {
     val context = LocalContext.current
-    val activity = reactActivity
     val focusRequester = remember { FocusRequester() }
     val configuration = LocalConfiguration.current
     var orientation by remember { mutableStateOf(configuration.orientation) }
@@ -128,7 +121,6 @@ fun VideoPlayer(
     var isplayerReady by remember {
         mutableStateOf(false)
     }
-
 
     val playerView = remember {
         PlayerView(context)
@@ -191,8 +183,6 @@ fun VideoPlayer(
                 this.prepare()
                 this.playWhenReady = playWhenReady
                 this.addListener(exoPlayerListener)
-
-
             }
     }
 
@@ -206,6 +196,10 @@ fun VideoPlayer(
     val interactionSource = remember { MutableInteractionSource() }
     var isControllerViible by remember {
         mutableStateOf(false)
+    }
+
+    var currentDialogType by remember {
+        mutableStateOf(TrackSettingsDialogType.None)
     }
 
     val fullScreenButton = remember {
@@ -243,7 +237,7 @@ fun VideoPlayer(
     }
 
     val closeFullScreenDialog = {
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
+        reactActivity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
         (playerView.parent as ViewGroup).removeView(playerView)
         parentFrame.addView(playerView)
         fullScreenButton.setImageDrawable(
@@ -299,7 +293,7 @@ fun VideoPlayer(
                 androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_exit
             )
         )
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        reactActivity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         (playerView.parent as ViewGroup).removeView(playerView)
         fullScreenDialog?.addContentView(
             playerView,
@@ -334,16 +328,15 @@ fun VideoPlayer(
             forwardButton.setOnClickListener {
                 exoPlayer.seekForward()
             }
-
-        }
-
-        if (!DeviceType.isTv(context))
             settingsButton.setOnClickListener {
-
+                    currentDialogType = TrackSettingsDialogType.Settings
             }
-
+        }
         subtitleButton.setOnClickListener {
-
+            if (currentDialogType == TrackSettingsDialogType.Subtitle)
+                currentDialogType = TrackSettingsDialogType.None
+            else
+                currentDialogType = TrackSettingsDialogType.Subtitle
         }
         audioTrackButton.setOnClickListener {
 
@@ -389,19 +382,19 @@ fun VideoPlayer(
 
     //Handle control button visibility for portrait and landscape
     LaunchedEffect(isFullscreen) {
-        if(DeviceType.isTv(context)){
+        if (DeviceType.isTv(context)) {
             audioTrackButton.isVisible(true)
             subtitleButton.isVisible(true)
             pipButton.isVisible(true)
-        }else{
-            if(isFullscreen){
+        } else {
+            if (isFullscreen) {
                 settingsButton.isVisible(false)
                 rewindButton.isVisible(true)
                 forwardButton.isVisible(true)
                 audioTrackButton.isVisible(true)
                 subtitleButton.isVisible(true)
                 pipButton.isVisible(true)
-            }else{
+            } else {
                 settingsButton.isVisible(true)
                 rewindButton.isVisible(false)
                 forwardButton.isVisible(false)
@@ -435,8 +428,16 @@ fun VideoPlayer(
         }
     }
 
+
+    val subtitleTracksAvailable = remember {
+        mutableStateListOf<Format>()
+    }
+    var subtitleTrackSelected by remember {
+        mutableStateOf<Format?>(null)
+    }
+
+
     Box(
-        contentAlignment = Alignment.BottomCenter,
         modifier = modifier
     ) {
         AndroidView(
@@ -481,6 +482,7 @@ fun VideoPlayer(
             },
             modifier = Modifier
                 //  .fillMaxSize()
+                .zIndex(1f)
                 .focusable(
                     enabled = true,
                     interactionSource = interactionSource
@@ -495,30 +497,46 @@ fun VideoPlayer(
                 }
                 .focusRequester(focusRequester),
         )
+        TrackSettingsDialogs(
+            currentDialogType = currentDialogType,
+            subtitleTracksAvailable = subtitleTracksAvailable,
+            selectedSubtitleTrack = subtitleTrackSelected,
+            onSettingsOptionChosen = { settingsItem ->
+                when (settingsItem) {
+                    SettingsItem.Audio -> {
+                        currentDialogType = TrackSettingsDialogType.Audio
+                    }
 
-        Text(
-            text = caption,
-            textAlign = TextAlign.Center,
-            fontSize = 10.sp,
-            color = Color.White,
-            fontFamily = FontFamily(listOf(Font(R.font.dm_sans_light))),
+                    SettingsItem.Subtitle -> {
+                        currentDialogType = TrackSettingsDialogType.Subtitle
+                    }
+                }
+            },
+            onSubtitleTrackSelected = { format ->
+                applySelectedSubtitleTrack(
+                    player = exoPlayer,
+                    language = format?.language
+                )
+                subtitleTrackSelected = format
+                currentDialogType = TrackSettingsDialogType.None
+            },
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp)
+                .fillMaxSize()
                 .zIndex(3f)
         )
-
 
     }
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
     LaunchedEffect(isplayerReady) {
+        subtitleTracksAvailable.clear()
+        subtitleTracksAvailable.addAll(getTrackOfType(exoPlayer, context, C.TRACK_TYPE_TEXT))
         getTrackOfType(exoPlayer, context, C.TRACK_TYPE_AUDIO)
-        getTrackOfType(exoPlayer, context, C.TRACK_TYPE_TEXT)
         getTrackOfType(exoPlayer, context, C.TRACK_TYPE_VIDEO)
-        applySelectedSubtitleTrack(exoPlayer, "en") // For English subtitles
+        // applySelectedSubtitleTrack(exoPlayer, "en") // For English subtitles
     }
+
 }
 
 
