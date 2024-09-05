@@ -1,15 +1,21 @@
 package com.onair.videoplayer
 
 import android.util.Log
+import android.view.KeyEvent.KEYCODE_BACK
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Indication
+import androidx.compose.foundation.IndicationInstance
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.InteractionSource
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +31,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,10 +41,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Color.Companion.Blue
-import androidx.compose.ui.graphics.Color.Companion.Green
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -105,7 +112,9 @@ fun TrackSettingsDialogs(
                     SubtitleTracksDialog(
                         subtitleTracksAvailable = subtitleTracksAvailable,
                         selectedTrack = selectedSubtitleTrack,
-                        onSubtitleTrackSelected = onSubtitleTrackSelected
+                        onSubtitleTrackSelected = onSubtitleTrackSelected,
+                        isFromSettings = false,
+                        dismissDialog = onDismissAllDialogs
                     )
                 }
 
@@ -157,7 +166,8 @@ fun SettingsDialog(
                 SubtitleTracksDialog(
                     subtitleTracksAvailable = subtitleTracksAvailable,
                     selectedTrack = selectedTrack,
-                    onSubtitleTrackSelected = onSubtitleTrackSelected
+                    onSubtitleTrackSelected = onSubtitleTrackSelected,
+                    isFromSettings = true
                 )
             }
 
@@ -227,11 +237,14 @@ fun SettingsItemRow(
 
 @Composable
 fun SubtitleTracksDialog(
+    isFromSettings:Boolean,
     subtitleTracksAvailable: List<Format>,
     selectedTrack: Format?,
     modifier: Modifier = Modifier,
-    onSubtitleTrackSelected: (Format?) -> Unit
+    onSubtitleTrackSelected: (Format?) -> Unit,
+    dismissDialog: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
 
     val trackNames = remember {
@@ -244,11 +257,28 @@ fun SubtitleTracksDialog(
         focusRequester.requestFocus()
     }
 
+    BackHandler(!isFromSettings) {
+        dismissDialog()
+    }
+
     Column(
         modifier = modifier
+            .then(
+                if (DeviceType.isTv(context))
+                    Modifier.fillMaxWidth(.2f)
+                else
+                    Modifier.fillMaxWidth(.4f)
+            )
             .focusRequester(focusRequester)
             .focusGroup()
             .background(colorResource(id = R.color.black_dialog_bg))
+            .onKeyEvent {
+              Log.i(LogTag,"onKeyEvent ${it.nativeKeyEvent}")
+                if (it.nativeKeyEvent.keyCode == KEYCODE_BACK){
+                    dismissDialog()
+                }
+                false
+            }
     ) {
         SubtitleItemOff(
             isSelected = selectedTrack == null,
@@ -273,37 +303,53 @@ fun SubtitleTrackItem(
     modifier: Modifier = Modifier,
     onSubtitleTrackSelected: (Format?) -> Unit
 ) {
+    val highlightIndication = remember { MyHighlightIndication() }
+    var interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+
+
     val context = LocalContext.current
-    Row(
-        modifier = modifier
-            .wrapContentWidth()
-            .height(45.dp)
-            .padding(12.dp)
-            .clickable {
+
+
+    Box(modifier = modifier
+        .fillMaxWidth()
+        .height(45.dp)
+        .clickable(
+            interactionSource = interactionSource,
+            indication = highlightIndication,
+            enabled = true,
+            onClick = {
                 if (!isSelected)
                     onSubtitleTrackSelected(track)
             }
-        ,
-    ) {
-        if (isSelected)
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(2.dp)
-                    .background(colorResource(id = R.color.red))
-            )
+        )) {
+        Row(
+            modifier = modifier
+                .wrapContentWidth()
+                .height(45.dp)
+                .padding(12.dp),
+        ) {
+            if (isSelected)
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(2.dp)
+                        .background(colorResource(id = R.color.red))
+                )
 
-        Text(
-            text = DefaultTrackNameProvider(context.resources).getTrackName(track),
-            fontFamily = FontFamily(
-                listOf(if (isSelected) Font(R.font.dm_sans_bold) else Font(R.font.dm_sans_light))
-            ),
-            fontSize = 14.sp,
-            color = colorResource(id = R.color.white),
-            textAlign = TextAlign.Start,
-            modifier = Modifier.padding(horizontal = 12.dp)
-        )
+            Text(
+                text = DefaultTrackNameProvider(context.resources).getTrackName(track),
+                fontFamily = FontFamily(
+                    listOf(if (isSelected) Font(R.font.dm_sans_bold) else Font(R.font.dm_sans_light))
+                ),
+                fontSize = 14.sp,
+                color = colorResource(id = if (isFocused) R.color.red else R.color.white),
+                textAlign = TextAlign.Start,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
+        }
     }
+
 }
 
 @Composable
@@ -312,35 +358,77 @@ fun SubtitleItemOff(
     modifier: Modifier = Modifier,
     onSubtitleTrackSelected: (Format?) -> Unit,
 ) {
-    Row(
-        modifier = modifier
-            .wrapContentWidth()
-            .height(45.dp)
-            .padding(12.dp)
-            .clickable {
+    val highlightIndication = remember { MyHighlightIndication() }
+    var interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    Log.i(LogTag, "isFocused OFF $isFocused")
+
+    Box(modifier = modifier
+        .fillMaxWidth()
+        .height(45.dp)
+        .clickable(
+            interactionSource = interactionSource,
+            indication = highlightIndication,
+            enabled = true,
+            onClick = {
                 if (!isSelected)
                     onSubtitleTrackSelected(null)
             }
+        )) {
+        Row(
+            modifier = modifier
+                .wrapContentWidth()
+                .height(45.dp)
+                .padding(12.dp),
+        ) {
+            if (isSelected)
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(2.dp)
+                        .background(colorResource(id = R.color.red))
+                )
 
-            .focusable(true),
-    ) {
-        if (isSelected)
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(2.dp)
-                    .background(colorResource(id = R.color.red))
+            Text(
+                text = "Off",
+                fontFamily = FontFamily(
+                    listOf(if (isSelected) Font(R.font.dm_sans_bold) else Font(R.font.dm_sans_light))
+                ),
+                fontSize = 14.sp,
+                color = colorResource(id = if (isFocused) R.color.red else R.color.white),
+                textAlign = TextAlign.Start,
+                modifier = Modifier.padding(horizontal = 12.dp)
             )
+        }
+    }
 
-        Text(
-            text = "Off",
-            fontFamily = FontFamily(
-                listOf(if (isSelected) Font(R.font.dm_sans_bold) else Font(R.font.dm_sans_light))
-            ),
-            fontSize = 14.sp,
-            color = colorResource(id = R.color.white),
-            textAlign = TextAlign.Start,
-            modifier = Modifier.padding(horizontal = 12.dp)
-        )
+
+}
+
+private class MyHighlightIndicationInstance(isEnabledState: State<Boolean>) :
+    IndicationInstance {
+    private val isEnabled by isEnabledState
+    override fun ContentDrawScope.drawIndication() {
+        if (isEnabled) {
+            drawRoundRect(
+                size = size,
+                color = Color.White,
+                cornerRadius = CornerRadius(x = 24.dp.toPx(), y = 24.dp.toPx()),
+                alpha = 1f
+            )
+        }
+        drawContent()
+
+    }
+}
+
+class MyHighlightIndication : Indication {
+    @Composable
+    override fun rememberUpdatedInstance(interactionSource: InteractionSource):
+            IndicationInstance {
+        val isFocusedState = interactionSource.collectIsFocusedAsState()
+        return remember(interactionSource) {
+            MyHighlightIndicationInstance(isEnabledState = isFocusedState)
+        }
     }
 }
