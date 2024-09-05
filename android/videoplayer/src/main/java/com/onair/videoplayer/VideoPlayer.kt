@@ -2,12 +2,7 @@ package com.onair.videoplayer
 
 import android.app.Activity
 import android.app.Dialog
-import android.content.pm.ActivityInfo
-import android.content.res.Configuration.ORIENTATION_LANDSCAPE
-import android.os.Bundle
-import android.util.Log
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
@@ -20,7 +15,6 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -43,11 +37,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
-import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.children
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
@@ -67,6 +59,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.PlayerView.ARTWORK_DISPLAY_MODE_FILL
+import kotlinx.coroutines.launch
 
 
 val LogTag = "NativeVideoPlayer"
@@ -306,7 +299,7 @@ fun VideoPlayer(
                 setApplyEmbeddedStyles(false)
                 setBottomPaddingFraction(2F) // padding from the bottom
                 setStyle(style)
-                setFixedTextSize(TEXT_SIZE_TYPE_ABSOLUTE, if (isFullscreen) 20f else 13f);
+                setFixedTextSize(TEXT_SIZE_TYPE_ABSOLUTE, if (isFullscreen) 18f else 13f);
 
             }
         }
@@ -336,21 +329,22 @@ fun VideoPlayer(
                 pipButton.isVisible(false)
             }
         }
-        if(isFullscreen){
-            windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
-            fullScreenButton.setImageDrawable(
-                ContextCompat.getDrawable(
-                    context, androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_exit
+        if (!DeviceType.isTv(context))
+            if (isFullscreen) {
+                windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
+                fullScreenButton.setImageDrawable(
+                    ContextCompat.getDrawable(
+                        context, androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_exit
+                    )
                 )
-            )
-        }else{
-            windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
-            fullScreenButton.setImageDrawable(
-                ContextCompat.getDrawable(
-                    context, R.drawable.custom_controls_full_screen_closed
+            } else {
+                windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
+                fullScreenButton.setImageDrawable(
+                    ContextCompat.getDrawable(
+                        context, R.drawable.custom_controls_full_screen_closed
+                    )
                 )
-            )
-        }
+            }
     }
 
     DisposableEffect(lifecycleOwner) {
@@ -372,7 +366,6 @@ fun VideoPlayer(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            // Log.i(LogTag, "Dispose release lifecycle observer")
         }
     }
 
@@ -381,6 +374,12 @@ fun VideoPlayer(
         mutableStateListOf<Format>()
     }
     var subtitleTrackSelected by remember {
+        mutableStateOf<Format?>(null)
+    }
+    val audioTracksAvailable = remember {
+        mutableStateListOf<Format>()
+    }
+    var audioTrackSelected by remember {
         mutableStateOf<Format?>(null)
     }
 
@@ -472,6 +471,9 @@ fun VideoPlayer(
                 subtitleTrackSelected = format
                 currentDialogType = TrackSettingsDialogType.None
             },
+            onDismissAllDialogs = {
+                currentDialogType = TrackSettingsDialogType.None
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(3f)
@@ -482,10 +484,16 @@ fun VideoPlayer(
         focusRequester.requestFocus()
     }
     LaunchedEffect(isplayerReady) {
-        subtitleTracksAvailable.clear()
-        subtitleTracksAvailable.addAll(getTrackOfType(exoPlayer, context, C.TRACK_TYPE_TEXT))
-        getTrackOfType(exoPlayer, context, C.TRACK_TYPE_AUDIO)
-        getTrackOfType(exoPlayer, context, C.TRACK_TYPE_VIDEO)
+        launch {
+            subtitleTracksAvailable.clear()
+            subtitleTracksAvailable.addAll(getTrackOfType(exoPlayer, context, C.TRACK_TYPE_TEXT))
+        }
+        launch {
+            audioTracksAvailable.clear()
+            audioTracksAvailable.addAll(getTrackOfType(exoPlayer, context, C.TRACK_TYPE_AUDIO))
+        }
+
+        //  getTrackOfType(exoPlayer, context, C.TRACK_TYPE_VIDEO)
         // applySelectedSubtitleTrack(exoPlayer, "en") // For English subtitles
     }
 

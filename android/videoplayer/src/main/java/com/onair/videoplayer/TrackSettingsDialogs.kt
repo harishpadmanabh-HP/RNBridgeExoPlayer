@@ -1,11 +1,14 @@
 package com.onair.videoplayer
 
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,11 +25,19 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color.Companion.Blue
+import androidx.compose.ui.graphics.Color.Companion.Green
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -35,7 +46,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import androidx.media3.common.Format
 import androidx.media3.common.util.UnstableApi
@@ -55,6 +65,7 @@ enum class SettingsItem(
 
 const val UNKNOWN_LANGUAGE = "Unknown Language"
 
+@kotlin.OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun TrackSettingsDialogs(
     currentDialogType: TrackSettingsDialogType,
@@ -62,14 +73,21 @@ fun TrackSettingsDialogs(
     selectedSubtitleTrack: Format?,
     modifier: Modifier = Modifier,
     onSettingsOptionChosen: (SettingsItem) -> Unit = {},
-    onSubtitleTrackSelected: (Format?) -> Unit = {}
+    onSubtitleTrackSelected: (Format?) -> Unit = {},
+    onDismissAllDialogs: () -> Unit
 ) {
-
-
     Box(
         modifier = modifier
             .fillMaxSize()
-            .zIndex(3f),
+            .zIndex(3f)
+            .then(
+                if (currentDialogType != TrackSettingsDialogType.None)
+                    Modifier.clickable {
+                        onDismissAllDialogs()
+                    }
+                else
+                    Modifier
+            ),
         contentAlignment = Alignment.BottomEnd
     ) {
         AnimatedContent(
@@ -77,10 +95,6 @@ fun TrackSettingsDialogs(
             label = "Video Options",
             modifier = Modifier
                 .background(Color.Transparent)
-                .padding(
-                    end = if (currentDialogType == TrackSettingsDialogType.Settings) 60.dp else 0.dp,
-                    bottom = 0.dp
-                )
         ) { type ->
             when (type) {
                 TrackSettingsDialogType.None -> {}
@@ -96,7 +110,12 @@ fun TrackSettingsDialogs(
                 }
 
                 TrackSettingsDialogType.Settings -> {
-                    SettingsDialog(onSettingsChosen = onSettingsOptionChosen)
+                    SettingsDialog(
+                        onSettingsChosen = onSettingsOptionChosen,
+                        subtitleTracksAvailable = subtitleTracksAvailable,
+                        selectedTrack = selectedSubtitleTrack,
+                        onSubtitleTrackSelected = onSubtitleTrackSelected
+                    )
                 }
             }
         }
@@ -107,24 +126,67 @@ fun TrackSettingsDialogs(
 @Composable
 fun SettingsDialog(
     modifier: Modifier = Modifier,
-    onSettingsChosen: (SettingsItem) -> Unit
+    onSettingsChosen: (SettingsItem) -> Unit,
+    subtitleTracksAvailable: List<Format>,
+    selectedTrack: Format?,
+    onSubtitleTrackSelected: (Format?) -> Unit
 ) {
-    Column(
-        modifier = modifier
-            .wrapContentSize()
-            .background(colorResource(id = R.color.black_dialog_bg))
-    ) {
-        SettingsItemRow(
-            item = SettingsItem.Subtitle,
-            modifier = Modifier.padding(12.dp),
-            onClicked = onSettingsChosen
-        )
-        SettingsItemRow(
-            item = SettingsItem.Audio,
-            modifier = Modifier.padding(12.dp),
-            onClicked = onSettingsChosen
-        )
+    var chosenSettings by remember {
+        mutableStateOf<SettingsItem?>(null)
     }
+
+    BackHandler(chosenSettings != null) {
+        chosenSettings = null
+    }
+
+
+
+    AnimatedContent(
+        targetState = chosenSettings,
+        label = "Choose Settings",
+        modifier = Modifier
+            .padding(end = if (chosenSettings == null) 60.dp else 0.dp)
+            .background(Color.Transparent)
+    ) { item ->
+        when (item) {
+            SettingsItem.Audio -> {
+
+            }
+
+            SettingsItem.Subtitle -> {
+                SubtitleTracksDialog(
+                    subtitleTracksAvailable = subtitleTracksAvailable,
+                    selectedTrack = selectedTrack,
+                    onSubtitleTrackSelected = onSubtitleTrackSelected
+                )
+            }
+
+            null -> {
+                Column(
+                    modifier = modifier
+                        .wrapContentSize()
+                        .background(colorResource(id = R.color.black_dialog_bg))
+                ) {
+                    SettingsItemRow(
+                        item = SettingsItem.Subtitle,
+                        modifier = Modifier.padding(12.dp),
+                        onClicked = {
+                            chosenSettings = it
+                        }
+                    )
+                    SettingsItemRow(
+                        item = SettingsItem.Audio,
+                        modifier = Modifier.padding(12.dp),
+                        onClicked = {
+                            chosenSettings = it
+                        }
+                    )
+                }
+            }
+        }
+
+    }
+
     Log.i(LogTag, "Settings shown")
 }
 
@@ -170,6 +232,8 @@ fun SubtitleTracksDialog(
     modifier: Modifier = Modifier,
     onSubtitleTrackSelected: (Format?) -> Unit
 ) {
+    val focusRequester = remember { FocusRequester() }
+
     val trackNames = remember {
         mutableStateListOf<String>()
     }
@@ -177,10 +241,13 @@ fun SubtitleTracksDialog(
         subtitleTracksAvailable.forEach {
             trackNames.add(it.language ?: UNKNOWN_LANGUAGE)
         }
+        focusRequester.requestFocus()
     }
 
     Column(
         modifier = modifier
+            .focusRequester(focusRequester)
+            .focusGroup()
             .background(colorResource(id = R.color.black_dialog_bg))
     ) {
         SubtitleItemOff(
@@ -216,7 +283,7 @@ fun SubtitleTrackItem(
                 if (!isSelected)
                     onSubtitleTrackSelected(track)
             }
-            .focusable(true),
+        ,
     ) {
         if (isSelected)
             Box(
@@ -254,6 +321,7 @@ fun SubtitleItemOff(
                 if (!isSelected)
                     onSubtitleTrackSelected(null)
             }
+
             .focusable(true),
     ) {
         if (isSelected)
