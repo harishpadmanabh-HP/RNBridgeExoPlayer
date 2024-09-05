@@ -11,6 +11,7 @@ import {
   Platform,
   UIManager
 } from 'react-native';
+import Orientation from 'react-native-orientation-locker'; // Import Orientation locker module
 
 const VideoPlayerView = requireNativeComponent('VideoPlayerManager');
 const { NativeVideoPlayerBridgeModule } = NativeModules;
@@ -20,6 +21,8 @@ const testUrl = 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sampl
 
 const App = () => {
   const [isTV, setIsTV] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  
 
   const playerProps = {
     videoUrl: testDashUrlWithSubTitle,
@@ -49,21 +52,38 @@ const App = () => {
       return false;
     });
 
+
+    const eventEmitter = new NativeEventEmitter(NativeModules.VideoPlayerManager);
+    const subscription = eventEmitter.addListener('onFullScreenChanged', (result) => {
+      NativeVideoPlayerBridgeModule.testLog(result.isFullScreen.toString());
+      NativeVideoPlayerBridgeModule.testLog('caught in event emitter');
+      setIsFullScreen(result.isFullScreen);
+      if (result.isFullScreen) {
+        Orientation.lockToLandscape(); // Lock to landscape on full screen
+      } else {
+        Orientation.unlockAllOrientations(); // Reset orientation on exit full screen
+      }
+    });
+
     return () => {
       backHandler.remove();
+      subscription.remove();
     };
-  }, []);
+  }, [isFullScreen]);
 
   const renderPhoneView = () => (
     <View style={styles.container}>
-        <VideoPlayerView
+      <VideoPlayerView
         ref={videoPlayerRef}
-        style={styles.videoPlayer}
+        style={isFullScreen ? styles.fullScreenVideoPlayer : styles.videoPlayer}
         playerProps={playerProps}
       />
-      <Text style={styles.title}>{playerProps.videoTitle}</Text>
-      <Text style={styles.description}>{playerProps.videoDescription}</Text>
-   
+      {!isFullScreen && (
+        <>
+          <Text style={styles.title}>{playerProps.videoTitle}</Text>
+          <Text style={styles.description}>{playerProps.videoDescription}</Text>
+        </>
+      )}
     </View>
   );
 
@@ -93,6 +113,7 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 16,
     marginBottom: 16,
+
   },
   videoPlayer: {
     width: '100%',

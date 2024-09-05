@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import androidx.media3.common.Format
 import androidx.media3.common.util.UnstableApi
@@ -63,6 +64,8 @@ fun TrackSettingsDialogs(
     onSettingsOptionChosen: (SettingsItem) -> Unit = {},
     onSubtitleTrackSelected: (Format?) -> Unit = {}
 ) {
+
+
     Box(
         modifier = modifier
             .fillMaxSize()

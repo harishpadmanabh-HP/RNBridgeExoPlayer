@@ -5,6 +5,7 @@ import android.app.Dialog
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration.ORIENTATION_LANDSCAPE
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -13,11 +14,13 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -44,6 +47,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.children
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
@@ -87,6 +91,7 @@ fun VideoPlayer(
     lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
     onIsPlayingChanged: (Boolean) -> Unit = {},
     onPlayerError: (Int) -> Unit = {},
+    onFullScreenChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
@@ -236,75 +241,12 @@ fun VideoPlayer(
         playerView.findViewById<Button>(R.id.exo_ffwd_custom)
     }
 
-    val closeFullScreenDialog = {
-        reactActivity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
-        (playerView.parent as ViewGroup).removeView(playerView)
-        parentFrame.addView(playerView)
-        fullScreenButton.setImageDrawable(
-            ContextCompat.getDrawable(
-                context, androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_enter
-            )
-        )
-        isFullscreen = false
-        fullScreenDialog?.dismiss()
-    }
-
-    val initFullScreenDialog = {
-        fullScreenDialog =
-            object :
-                Dialog(reactActivity, android.R.style.Theme_Black_NoTitleBar_Fullscreen) {
-                @Deprecated("Deprecated in Java")
-                override fun onBackPressed() {
-                    if (isFullscreen) closeFullScreenDialog()
-                    super.onBackPressed()
-                }
-
-                override fun onCreate(savedInstanceState: Bundle?) {
-                    super.onCreate(savedInstanceState)
-                    val windowInsetsController =
-                        window?.decorView?.let {
-                            WindowCompat.getInsetsController(window!!, it)
-                        }
-                    windowInsetsController?.systemBarsBehavior =
-                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                    //Log.i(LogTag, "windowInsetsController = $windowInsetsController")
-                    windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
-
-                    ViewCompat.setOnApplyWindowInsetsListener(window!!.decorView) { v, windowInsets ->
-                        // Log.i(LogTag, "setOnApplyWindowInsetsListener = $windowInsets")
-                        if (windowInsets.isVisible(WindowInsetsCompat.Type.navigationBars())
-                            || windowInsets.isVisible(WindowInsetsCompat.Type.statusBars())
-                        ) {
-                            windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
-                        }
-
-
-                        ViewCompat.onApplyWindowInsets(v, windowInsets)
-                    }
-                }
-            }
-    }
-
-    val openFullScreenDialog = {
-        initFullScreenDialog()
-        fullScreenButton.setImageDrawable(
-            ContextCompat.getDrawable(
-                context,
-                androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_exit
-            )
-        )
-        reactActivity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        (playerView.parent as ViewGroup).removeView(playerView)
-        fullScreenDialog?.addContentView(
-            playerView,
-            ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        )
-        isFullscreen = true
-        fullScreenDialog?.show()
-    }
+    val windowInsetsController =
+        reactActivity.window?.decorView?.let {
+            WindowCompat.getInsetsController(reactActivity.window!!, it)
+        }
+    windowInsetsController?.systemBarsBehavior =
+        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
     val setDetails = {
         titleView.text = title
@@ -319,8 +261,8 @@ fun VideoPlayer(
     val configureControlButtons = {
         if (!DeviceType.isTv(context)) {
             fullScreenButton.setOnClickListener {
-                if (isFullscreen) closeFullScreenDialog()
-                else openFullScreenDialog()
+                isFullscreen = !isFullscreen
+                onFullScreenChanged(isFullscreen)
             }
             rewindButton.setOnClickListener {
                 exoPlayer.seekBack()
@@ -329,7 +271,7 @@ fun VideoPlayer(
                 exoPlayer.seekForward()
             }
             settingsButton.setOnClickListener {
-                    currentDialogType = TrackSettingsDialogType.Settings
+                currentDialogType = TrackSettingsDialogType.Settings
             }
         }
         subtitleButton.setOnClickListener {
@@ -371,15 +313,6 @@ fun VideoPlayer(
     }
 
 
-
-    LaunchedEffect(configuration.orientation) {
-        orientation = configuration.orientation
-        //Log.i(LogTag, "Orientation changed: $orientation isFullscreen: $isFullscreen")
-        if (orientation == ORIENTATION_LANDSCAPE && !isFullscreen && exoPlayer.isPlaying) {
-            openFullScreenDialog()
-        }
-    }
-
     //Handle control button visibility for portrait and landscape
     LaunchedEffect(isFullscreen) {
         if (DeviceType.isTv(context)) {
@@ -402,6 +335,21 @@ fun VideoPlayer(
                 subtitleButton.isVisible(false)
                 pipButton.isVisible(false)
             }
+        }
+        if(isFullscreen){
+            windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
+            fullScreenButton.setImageDrawable(
+                ContextCompat.getDrawable(
+                    context, androidx.media3.ui.R.drawable.exo_styled_controls_fullscreen_exit
+                )
+            )
+        }else{
+            windowInsetsController?.show(WindowInsetsCompat.Type.systemBars())
+            fullScreenButton.setImageDrawable(
+                ContextCompat.getDrawable(
+                    context, R.drawable.custom_controls_full_screen_closed
+                )
+            )
         }
     }
 
@@ -436,6 +384,10 @@ fun VideoPlayer(
         mutableStateOf<Format?>(null)
     }
 
+    BackHandler(isFullscreen) {
+        isFullscreen = !isFullscreen
+        onFullScreenChanged(isFullscreen)
+    }
 
     Box(
         modifier = modifier
@@ -538,6 +490,17 @@ fun VideoPlayer(
     }
 
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 
