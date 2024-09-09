@@ -470,9 +470,13 @@ fun VideoPlayer(
                 )
                 subtitleTrackSelected = format
                 currentDialogType = TrackSettingsDialogType.None
+                subtitleButton.requestFocus()
+
             },
             onDismissAllDialogs = {
                 currentDialogType = TrackSettingsDialogType.None
+                playPauseButton.requestFocus()
+
             },
             modifier = Modifier
                 .fillMaxSize()
