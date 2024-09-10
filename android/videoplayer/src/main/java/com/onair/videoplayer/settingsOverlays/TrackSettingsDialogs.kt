@@ -1,4 +1,4 @@
-package com.onair.videoplayer
+package com.onair.videoplayer.settingsOverlays
 
 import android.util.Log
 import android.view.KeyEvent.KEYCODE_BACK
@@ -7,13 +7,10 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.Indication
-import androidx.compose.foundation.IndicationInstance
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -31,7 +28,6 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -41,9 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
@@ -57,6 +51,10 @@ import androidx.compose.ui.zIndex
 import androidx.media3.common.Format
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.DefaultTrackNameProvider
+import com.onair.videoplayer.DeviceType
+import com.onair.videoplayer.LogTag
+import com.onair.videoplayer.R
+import com.onair.videoplayer.settingsOverlays.TvFocusIndicators.MyHighlightIndication
 
 enum class TrackSettingsDialogType {
     None, Audio, Subtitle, Settings
@@ -81,6 +79,9 @@ fun TrackSettingsDialogs(
     modifier: Modifier = Modifier,
     onSettingsOptionChosen: (SettingsItem) -> Unit = {},
     onSubtitleTrackSelected: (Format?) -> Unit = {},
+    audioTracksAvailable: List<Format>,
+    onAudioTrackSelected: (Format?) -> Unit,
+    selectedAudioTrack: Format?,
     onDismissAllDialogs: () -> Unit
 ) {
     Box(
@@ -106,6 +107,12 @@ fun TrackSettingsDialogs(
             when (type) {
                 TrackSettingsDialogType.None -> {}
                 TrackSettingsDialogType.Audio -> {
+                    AudioTracksDialog(
+                        isFromSettings = false,
+                        audioTracksAvailable = audioTracksAvailable ,
+                        selectedTrack = selectedAudioTrack ,
+                        onAudioTrackSelected = onAudioTrackSelected
+                    )
                 }
 
                 TrackSettingsDialogType.Subtitle -> {
@@ -122,8 +129,11 @@ fun TrackSettingsDialogs(
                     SettingsDialog(
                         onSettingsChosen = onSettingsOptionChosen,
                         subtitleTracksAvailable = subtitleTracksAvailable,
-                        selectedTrack = selectedSubtitleTrack,
-                        onSubtitleTrackSelected = onSubtitleTrackSelected
+                        selectedSubtitleTrack = selectedSubtitleTrack,
+                        onSubtitleTrackSelected = onSubtitleTrackSelected,
+                        audioTracksAvailable = audioTracksAvailable,
+                        onAudioTrackSelected = onAudioTrackSelected,
+                        selectedAudioTrack = selectedAudioTrack
                     )
                 }
             }
@@ -137,8 +147,11 @@ fun SettingsDialog(
     modifier: Modifier = Modifier,
     onSettingsChosen: (SettingsItem) -> Unit,
     subtitleTracksAvailable: List<Format>,
-    selectedTrack: Format?,
-    onSubtitleTrackSelected: (Format?) -> Unit
+    selectedSubtitleTrack: Format?,
+    onSubtitleTrackSelected: (Format?) -> Unit,
+    audioTracksAvailable: List<Format>,
+    onAudioTrackSelected: (Format?) -> Unit,
+    selectedAudioTrack: Format?
 ) {
     var chosenSettings by remember {
         mutableStateOf<SettingsItem?>(null)
@@ -159,13 +172,18 @@ fun SettingsDialog(
     ) { item ->
         when (item) {
             SettingsItem.Audio -> {
-
+                AudioTracksDialog(
+                    audioTracksAvailable = audioTracksAvailable,
+                    selectedTrack = selectedAudioTrack,
+                    onAudioTrackSelected = onAudioTrackSelected,
+                    isFromSettings = true
+                )
             }
 
             SettingsItem.Subtitle -> {
                 SubtitleTracksDialog(
                     subtitleTracksAvailable = subtitleTracksAvailable,
-                    selectedTrack = selectedTrack,
+                    selectedTrack = selectedSubtitleTrack,
                     onSubtitleTrackSelected = onSubtitleTrackSelected,
                     isFromSettings = true
                 )
@@ -237,7 +255,7 @@ fun SettingsItemRow(
 
 @Composable
 fun SubtitleTracksDialog(
-    isFromSettings:Boolean,
+    isFromSettings: Boolean,
     subtitleTracksAvailable: List<Format>,
     selectedTrack: Format?,
     modifier: Modifier = Modifier,
@@ -273,19 +291,19 @@ fun SubtitleTracksDialog(
             .focusGroup()
             .background(colorResource(id = R.color.black_dialog_bg))
             .onKeyEvent {
-              Log.i(LogTag,"onKeyEvent ${it.nativeKeyEvent}")
-                if (it.nativeKeyEvent.keyCode == KEYCODE_BACK){
+                Log.i(LogTag, "onKeyEvent ${it.nativeKeyEvent}")
+                if (it.nativeKeyEvent.keyCode == KEYCODE_BACK) {
                     dismissDialog()
                 }
                 false
             }
     ) {
-        SubtitleItemOff(
+        TrackItemOff(
             isSelected = selectedTrack == null,
             onSubtitleTrackSelected = onSubtitleTrackSelected
         )
         subtitleTracksAvailable.forEach {
-            SubtitleTrackItem(
+            TrackItem(
                 track = it,
                 isSelected = selectedTrack == it,
                 onSubtitleTrackSelected = onSubtitleTrackSelected
@@ -297,7 +315,7 @@ fun SubtitleTracksDialog(
 
 @OptIn(UnstableApi::class)
 @Composable
-fun SubtitleTrackItem(
+fun TrackItem(
     track: Format,
     isSelected: Boolean,
     modifier: Modifier = Modifier,
@@ -353,7 +371,8 @@ fun SubtitleTrackItem(
 }
 
 @Composable
-fun SubtitleItemOff(
+fun TrackItemOff(
+    label:String="Off",
     isSelected: Boolean,
     modifier: Modifier = Modifier,
     onSubtitleTrackSelected: (Format?) -> Unit,
@@ -390,7 +409,7 @@ fun SubtitleItemOff(
                 )
 
             Text(
-                text = "Off",
+                text = label,
                 fontFamily = FontFamily(
                     listOf(if (isSelected) Font(R.font.dm_sans_bold) else Font(R.font.dm_sans_light))
                 ),
@@ -405,30 +424,64 @@ fun SubtitleItemOff(
 
 }
 
-private class MyHighlightIndicationInstance(isEnabledState: State<Boolean>) :
-    IndicationInstance {
-    private val isEnabled by isEnabledState
-    override fun ContentDrawScope.drawIndication() {
-        if (isEnabled) {
-            drawRoundRect(
-                size = size,
-                color = Color.White,
-                cornerRadius = CornerRadius(x = 24.dp.toPx(), y = 24.dp.toPx()),
-                alpha = 1f
+@Composable
+fun AudioTracksDialog(
+    isFromSettings: Boolean,
+    audioTracksAvailable: List<Format>,
+    selectedTrack: Format?,
+    onAudioTrackSelected: (Format?) -> Unit,
+    dismissDialog: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val focusRequester = remember { FocusRequester() }
+
+    val trackNames = remember {
+        mutableStateListOf<String>()
+    }
+    LaunchedEffect(audioTracksAvailable) {
+        audioTracksAvailable.forEach {
+            trackNames.add(it.language ?: UNKNOWN_LANGUAGE)
+        }
+        focusRequester.requestFocus()
+    }
+
+    BackHandler(!isFromSettings) {
+        dismissDialog()
+    }
+
+    Column(
+        modifier = modifier
+            .then(
+                if (DeviceType.isTv(context))
+                    Modifier.fillMaxWidth(.2f)
+                else
+                    Modifier.fillMaxWidth(.4f)
+            )
+            .focusRequester(focusRequester)
+            .focusGroup()
+            .background(colorResource(id = R.color.black_dialog_bg))
+            .onKeyEvent {
+                Log.i(LogTag, "onKeyEvent ${it.nativeKeyEvent}")
+                if (it.nativeKeyEvent.keyCode == KEYCODE_BACK) {
+                    dismissDialog()
+                }
+                false
+            }
+    ) {
+        TrackItemOff(
+            isSelected = selectedTrack == null,
+            onSubtitleTrackSelected = onAudioTrackSelected
+        )
+        audioTracksAvailable.forEach {
+            TrackItem(
+                track = it,
+                isSelected = selectedTrack == it,
+                onSubtitleTrackSelected = onAudioTrackSelected
             )
         }
-        drawContent()
 
     }
+
 }
 
-class MyHighlightIndication : Indication {
-    @Composable
-    override fun rememberUpdatedInstance(interactionSource: InteractionSource):
-            IndicationInstance {
-        val isFocusedState = interactionSource.collectIsFocusedAsState()
-        return remember(interactionSource) {
-            MyHighlightIndicationInstance(isEnabledState = isFocusedState)
-        }
-    }
-}

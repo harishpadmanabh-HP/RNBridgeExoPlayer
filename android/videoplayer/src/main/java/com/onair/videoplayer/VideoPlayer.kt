@@ -59,6 +59,9 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.PlayerView.ARTWORK_DISPLAY_MODE_FILL
+import com.onair.videoplayer.settingsOverlays.SettingsItem
+import com.onair.videoplayer.settingsOverlays.TrackSettingsDialogType
+import com.onair.videoplayer.settingsOverlays.TrackSettingsDialogs
 import kotlinx.coroutines.launch
 
 
@@ -274,7 +277,10 @@ fun VideoPlayer(
                 currentDialogType = TrackSettingsDialogType.Subtitle
         }
         audioTrackButton.setOnClickListener {
-
+            if (currentDialogType == TrackSettingsDialogType.Audio)
+                currentDialogType = TrackSettingsDialogType.None
+            else
+                currentDialogType = TrackSettingsDialogType.Audio
         }
         pipButton.setOnClickListener {
 
@@ -452,6 +458,8 @@ fun VideoPlayer(
             currentDialogType = currentDialogType,
             subtitleTracksAvailable = subtitleTracksAvailable,
             selectedSubtitleTrack = subtitleTrackSelected,
+            audioTracksAvailable = audioTracksAvailable,
+            selectedAudioTrack = audioTrackSelected,
             onSettingsOptionChosen = { settingsItem ->
                 when (settingsItem) {
                     SettingsItem.Audio -> {
@@ -472,6 +480,16 @@ fun VideoPlayer(
                 currentDialogType = TrackSettingsDialogType.None
                 subtitleButton.requestFocus()
 
+            },
+            onAudioTrackSelected = {format->
+                applySelectedAudioTrack(
+                    player = exoPlayer,
+                    language = format?.language,
+                    mimeType = format?.sampleMimeType
+                )
+                audioTrackSelected=format
+                currentDialogType = TrackSettingsDialogType.None
+                audioTrackButton.requestFocus()
             },
             onDismissAllDialogs = {
                 currentDialogType = TrackSettingsDialogType.None

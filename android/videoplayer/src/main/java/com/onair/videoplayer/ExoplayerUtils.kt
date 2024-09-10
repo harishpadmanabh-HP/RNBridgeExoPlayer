@@ -56,7 +56,6 @@ fun getTrackOfType(player: ExoPlayer, context: Context, trackType: Int): List<Fo
             }
         }
     }
-    Log.i(LogTag, "Subtitles: $subtitles")
     return subtitles
 }
 
@@ -79,6 +78,34 @@ fun applySelectedSubtitleTrack(player: ExoPlayer, language: String?) {
         parametersBuilder.setPreferredTextLanguage(language)
         parametersBuilder.setRendererDisabled(C.TRACK_TYPE_TEXT, false)  // Enable text tracks
     }
+    Log.i(LogTag,"Applied TEXT TRACK $language")
+
+    // Apply the updated track selection parameters
+    trackSelector.setParameters(parametersBuilder.build())
+}
+
+@OptIn(UnstableApi::class)
+fun applySelectedAudioTrack(player: ExoPlayer, language: String?, mimeType: String?) {
+    val trackSelector = player.trackSelector as? DefaultTrackSelector ?: return
+
+    val parametersBuilder = trackSelector.buildUponParameters()
+
+    if (language.isNullOrEmpty()) {
+        parametersBuilder
+            .setRendererDisabled(C.TRACK_TYPE_AUDIO, true)
+            .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
+            .setPreferredAudioLanguage(null)
+
+    } else {
+        parametersBuilder
+            .setPreferredAudioLanguage(language)
+            .setRendererDisabled(C.TRACK_TYPE_AUDIO, false)
+    }
+
+    //Set mime type like Stereo or dolby
+    parametersBuilder.setPreferredAudioMimeType(mimeType)
+
+    Log.i(LogTag,"Applied AUDIO TRACK $language,$mimeType")
 
     // Apply the updated track selection parameters
     trackSelector.setParameters(parametersBuilder.build())
