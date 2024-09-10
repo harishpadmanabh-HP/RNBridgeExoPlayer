@@ -89,21 +89,24 @@ fun applySelectedAudioTrack(player: ExoPlayer, language: String?, mimeType: Stri
     val trackSelector = player.trackSelector as? DefaultTrackSelector ?: return
 
     val parametersBuilder = trackSelector.buildUponParameters()
-
-    if (language.isNullOrEmpty()) {
+    if (language.isNullOrEmpty() && mimeType.isNullOrEmpty()) {
+        // Clear all overrides for audio track
         parametersBuilder
-            .setRendererDisabled(C.TRACK_TYPE_AUDIO, true)
-            .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
-            .setPreferredAudioLanguage(null)
-
-    } else {
-        parametersBuilder
-            .setPreferredAudioLanguage(language)
+            .clearSelectionOverrides(C.TRACK_TYPE_AUDIO)
             .setRendererDisabled(C.TRACK_TYPE_AUDIO, false)
-    }
+    } else {
+        // Apply specific audio preferences if provided
+        if (!language.isNullOrEmpty()) {
+            parametersBuilder
+                .setPreferredAudioLanguage(language)
+                .setRendererDisabled(C.TRACK_TYPE_AUDIO, false)
+        }
 
-    //Set mime type like Stereo or dolby
-    parametersBuilder.setPreferredAudioMimeType(mimeType)
+        // Set or clear audio channel preference
+        if (!mimeType.isNullOrEmpty()) {
+            parametersBuilder.setPreferredAudioMimeType(mimeType)
+        }
+    }
 
     Log.i(LogTag,"Applied AUDIO TRACK $language,$mimeType")
 

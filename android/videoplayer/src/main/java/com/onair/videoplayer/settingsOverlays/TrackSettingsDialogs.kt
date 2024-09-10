@@ -470,6 +470,7 @@ fun AudioTracksDialog(
             }
     ) {
         TrackItemOff(
+            label = "Auto",
             isSelected = selectedTrack == null,
             onSubtitleTrackSelected = onAudioTrackSelected
         )
