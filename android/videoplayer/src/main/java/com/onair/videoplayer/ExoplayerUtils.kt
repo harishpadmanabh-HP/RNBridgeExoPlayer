@@ -1,7 +1,11 @@
 package com.onair.videoplayer
 
+import android.app.Activity
+import android.app.PictureInPictureParams
 import android.content.Context
+import android.os.Build
 import android.util.Log
+import android.util.Rational
 import android.view.View
 import androidx.annotation.OptIn
 import androidx.compose.runtime.LaunchedEffect
@@ -78,7 +82,7 @@ fun applySelectedSubtitleTrack(player: ExoPlayer, language: String?) {
         parametersBuilder.setPreferredTextLanguage(language)
         parametersBuilder.setRendererDisabled(C.TRACK_TYPE_TEXT, false)  // Enable text tracks
     }
-    Log.i(LogTag,"Applied TEXT TRACK $language")
+    Log.i(LogTag, "Applied TEXT TRACK $language")
 
     // Apply the updated track selection parameters
     trackSelector.setParameters(parametersBuilder.build())
@@ -94,6 +98,7 @@ fun applySelectedAudioTrack(player: ExoPlayer, language: String?, mimeType: Stri
         parametersBuilder
             .clearSelectionOverrides(C.TRACK_TYPE_AUDIO)
             .setRendererDisabled(C.TRACK_TYPE_AUDIO, false)
+            .setPreferredAudioLanguage(null)
     } else {
         // Apply specific audio preferences if provided
         if (!language.isNullOrEmpty()) {
@@ -108,7 +113,7 @@ fun applySelectedAudioTrack(player: ExoPlayer, language: String?, mimeType: Stri
         }
     }
 
-    Log.i(LogTag,"Applied AUDIO TRACK $language,$mimeType")
+    Log.i(LogTag, "Applied AUDIO TRACK $language,$mimeType")
 
     // Apply the updated track selection parameters
     trackSelector.setParameters(parametersBuilder.build())
@@ -168,4 +173,15 @@ fun Int.asAspectRatioFrameLayoutResizeMode() = when (this) {
     else -> {
         AspectRatioFrameLayout.RESIZE_MODE_FIT
     }
+}
+
+fun updatePipParams(
+    pipParamsBuilder: PictureInPictureParams.Builder,
+    reactActivity: Activity?
+) {
+    if (reactActivity != null)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            pipParamsBuilder.setAspectRatio(Rational(16, 9)) // Set appropriate aspect ratio
+            reactActivity.setPictureInPictureParams(pipParamsBuilder.build())
+        }
 }

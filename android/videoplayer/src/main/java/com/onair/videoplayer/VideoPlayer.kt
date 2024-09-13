@@ -2,6 +2,10 @@ package com.onair.videoplayer
 
 import android.app.Activity
 import android.app.Dialog
+import android.app.PictureInPictureParams
+import android.os.Build
+import android.util.Log
+import android.util.Rational
 import android.view.View
 import android.widget.Button
 import android.widget.FrameLayout
@@ -11,6 +15,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -47,7 +52,6 @@ import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.Tracks
 import androidx.media3.common.text.Cue.TEXT_SIZE_TYPE_ABSOLUTE
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.UnstableApi
@@ -67,6 +71,7 @@ import kotlinx.coroutines.launch
 
 val LogTag = "NativeVideoPlayer"
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(UnstableApi::class)
 @Composable
 fun VideoPlayer(
@@ -101,6 +106,9 @@ fun VideoPlayer(
     var caption by rememberSaveable {
         mutableStateOf("")
     }
+    val pipParamsBuilder = remember {
+        PictureInPictureParams.Builder()
+    }
 
     val mediaItem = remember {
         mutableStateOf(
@@ -131,18 +139,12 @@ fun VideoPlayer(
         object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 onIsPlayingChanged(isPlaying)
-                //Log.d(LogTag, "onIsPlayingChanged: $isPlaying")
             }
 
             override fun onPlayerError(error: PlaybackException) {
                 onPlayerError(error.errorCode)
                 val cause = error.cause
-                // Log.e(LogTag, "PlaybackException Occurred: ${error.message} caused by $cause")
-            }
-
-            override fun onTracksChanged(tracks: Tracks) {
-                super.onTracksChanged(tracks)
-                //  Log.d(LogTag, "onTracksChanged: ${tracks.groups}")
+                Log.e(LogTag, "PlaybackException Occurred: ${error.message} caused by $cause")
             }
 
             override fun onCues(cueGroup: CueGroup) {
@@ -195,7 +197,7 @@ fun VideoPlayer(
 
 
     val interactionSource = remember { MutableInteractionSource() }
-    var isControllerViible by remember {
+    var isControllerVisible by remember {
         mutableStateOf(false)
     }
 
@@ -283,7 +285,12 @@ fun VideoPlayer(
                 currentDialogType = TrackSettingsDialogType.Audio
         }
         pipButton.setOnClickListener {
-
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (reactActivity.isInPictureInPictureMode.not()) {
+                    pipParamsBuilder.setAspectRatio(Rational(16, 9))
+                    reactActivity.enterPictureInPictureMode(pipParamsBuilder.build())
+                }
+            }
         }
 
 
@@ -415,7 +422,7 @@ fun VideoPlayer(
                 // it.setResizeMode(resizeMode.asAspectRatioFrameLayoutResizeMode())
                 it.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL)
                 it.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener {
-                    isControllerViible = it == View.VISIBLE
+                    isControllerVisible = it == View.VISIBLE
                 })
                 it.artworkDisplayMode = ARTWORK_DISPLAY_MODE_FILL
                 it.setShowSubtitleButton(true)
@@ -445,7 +452,7 @@ fun VideoPlayer(
                     interactionSource = interactionSource
                 )
                 .onKeyEvent {
-                    if (isControllerViible)
+                    if (isControllerVisible)
                         playerView.dispatchKeyEvent(it.nativeKeyEvent)
                     else {
                         playerView.showController()
@@ -514,9 +521,6 @@ fun VideoPlayer(
             audioTracksAvailable.clear()
             audioTracksAvailable.addAll(getTrackOfType(exoPlayer, context, C.TRACK_TYPE_AUDIO))
         }
-
-        //  getTrackOfType(exoPlayer, context, C.TRACK_TYPE_VIDEO)
-        // applySelectedSubtitleTrack(exoPlayer, "en") // For English subtitles
     }
 
 }
