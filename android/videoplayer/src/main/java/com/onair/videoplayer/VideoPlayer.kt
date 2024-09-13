@@ -91,18 +91,15 @@ fun VideoPlayer(
     resizeMode: Int = VideoResizeKeys.RESIZE_MODE_FIT,
     lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
     onIsPlayingChanged: (Boolean) -> Unit = {},
-    onPlayerError: (Int) -> Unit = {},
+    onPlayerError: (String?) -> Unit = {},
     onFullScreenChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     val configuration = LocalConfiguration.current
-    var orientation by remember { mutableStateOf(configuration.orientation) }
 
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
-    var fullScreenDialog by remember {
-        mutableStateOf<Dialog?>(null)
-    }
+
     var caption by rememberSaveable {
         mutableStateOf("")
     }
@@ -142,8 +139,8 @@ fun VideoPlayer(
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                onPlayerError(error.errorCode)
                 val cause = error.cause
+                onPlayerError(cause?.localizedMessage)
                 Log.e(LogTag, "PlaybackException Occurred: ${error.message} caused by $cause")
             }
 

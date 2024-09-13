@@ -18,6 +18,9 @@ const { NativeVideoPlayerBridgeModule } = NativeModules;
 
 const testDashUrlWithSubTitle = 'https://po.cdn.onair.events/test-demo/test-5min-uhd-sdr-sur-lossless-subtitle-vtt-eng-dut-drm-/hd/no-drm/index.mpd'
 const testUrl = 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+const multiLangTestUrl = 'https://cdn.bitmovin.com/content/assets/sintel/sintel.mpd'
+const multiSubtitle = 'https://dash.akamaized.net/dash264/TestCasesIOP41/CMAF/UnifiedStreaming/ToS_AVC_MultiRate_MultiRes_AAC_Eng_WebVTT.mpd'
+const multiLangs = 'https://dash.akamaized.net/dash264/TestCasesIOP41/MultiTrack/alternative_content/6/manifest_alternative_lang.mpd'
 
 const App = () => {
   const [isTV, setIsTV] = useState(false);
@@ -25,7 +28,7 @@ const App = () => {
   
 
   const playerProps = {
-    videoUrl: testDashUrlWithSubTitle,
+    videoUrl: multiLangs,
     startPosition: 0,
     isPlaying: true,
     resizeMode: 1,

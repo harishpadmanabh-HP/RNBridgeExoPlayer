@@ -1,22 +1,22 @@
 package com.bridgeplayer
 
+import android.os.Build
 import android.view.View
 import android.widget.FrameLayout
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableMap
+import com.facebook.react.bridge.WritableMap
+import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.uimanager.SimpleViewManager
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.annotations.ReactProp
 import com.onair.videoplayer.VideoPlayer
 import com.onair.videoplayer.VideoResizeKeys
-import com.facebook.react.bridge.Callback
-import com.facebook.react.bridge.WritableMap
-import com.facebook.react.modules.core.DeviceEventManagerModule
 
 
 class VideoPlayerManager(private val reactContext: ReactApplicationContext) :
@@ -36,6 +36,7 @@ class VideoPlayerManager(private val reactContext: ReactApplicationContext) :
     }
 
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @ReactProp(name = "playerProps")
     fun setPlayerProps(view: FrameLayout, props: ReadableMap?) {
         val activity = reactContext.currentActivity
@@ -59,6 +60,15 @@ class VideoPlayerManager(private val reactContext: ReactApplicationContext) :
                             putBoolean("isFullScreen", it)
                         }
                         sendEvent("onFullScreenChanged", params)
+                    },
+                    onPlayerError = { error ->
+                        error?.let {
+                            val params = Arguments.createMap().apply {
+                                putString("playerError", it)
+                            }
+                            sendEvent("onPlayerError", params)
+                        }
+
                     }
                 )
             }
