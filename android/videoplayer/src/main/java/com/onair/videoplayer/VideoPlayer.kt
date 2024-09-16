@@ -3,6 +3,7 @@ package com.onair.videoplayer
 import android.app.Activity
 import android.app.Dialog
 import android.app.PictureInPictureParams
+import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
 import android.util.Rational
@@ -40,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.WindowCompat
@@ -63,6 +65,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.PlayerView.ARTWORK_DISPLAY_MODE_FILL
+import androidx.window.layout.WindowMetricsCalculator
 import com.onair.videoplayer.settingsOverlays.SettingsItem
 import com.onair.videoplayer.settingsOverlays.TrackSettingsDialogType
 import com.onair.videoplayer.settingsOverlays.TrackSettingsDialogs
@@ -97,15 +100,22 @@ fun VideoPlayer(
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     val configuration = LocalConfiguration.current
+    val windowMetrics = WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(reactActivity)
+// Determine screen width and height
+    val screenWidth = windowMetrics.bounds.width()
+    val screenHeight = windowMetrics.bounds.height()
+
+    // Handle layout based on screen size
+    val isInPictureInPictureMode = screenWidth < 600 // Example threshold for PiP mode
+    Log.i(LogTag,"isInPictureInPictureMode $isInPictureInPictureMode")
+
 
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
 
     var caption by rememberSaveable {
         mutableStateOf("")
     }
-    val pipParamsBuilder = remember {
-        PictureInPictureParams.Builder()
-    }
+
 
     val mediaItem = remember {
         mutableStateOf(
@@ -189,7 +199,6 @@ fun VideoPlayer(
     val releasePlayer = {
         exoPlayer.removeListener(exoPlayerListener)
         exoPlayer.release()
-        //  Log.i(LogTag, "Player released")
     }
 
 
@@ -234,6 +243,14 @@ fun VideoPlayer(
     }
     val forwardButton = remember {
         playerView.findViewById<Button>(R.id.exo_ffwd_custom)
+    }
+    val controllerLayout= remember {
+        playerView.findViewById<ConstraintLayout>(R.id.exo_parent_control_layout)
+    }
+
+    //Hide controllers in PIP Mode
+    LaunchedEffect(isInPictureInPictureMode) {
+        controllerLayout.isVisible(!isInPictureInPictureMode)
     }
 
     val windowInsetsController =
@@ -283,9 +300,18 @@ fun VideoPlayer(
         }
         pipButton.setOnClickListener {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                if (reactActivity.isInPictureInPictureMode.not()) {
-                    pipParamsBuilder.setAspectRatio(Rational(16, 9))
-                    reactActivity.enterPictureInPictureMode(pipParamsBuilder.build())
+                if (reactActivity.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
+                    val params = PictureInPictureParams.Builder()
+                        .setAspectRatio(Rational(16, 9))  // Set appropriate aspect ratio
+                        .build()
+
+                    if (reactActivity.enterPictureInPictureMode(params)) {
+                        Log.d(LogTag, "Entered PiP mode")
+                    } else {
+                        Log.e(LogTag, "Failed to enter PiP mode")
+                    }
+                } else {
+                    Log.e(LogTag, "Device doesn't support Picture-in-Picture")
                 }
             }
         }
@@ -357,12 +383,15 @@ fun VideoPlayer(
             }
     }
 
+
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_CREATE) {
                 configureControlButtons()
                 setDetails()
                 setLiveIndicators()
+                Log.i(LogTag,"PIP ${reactActivity.isInPictureInPictureMode}")
             } else if (event == Lifecycle.Event.ON_START) {
                 if (exoPlayer.isPlaying.not()) {
                     exoPlayer.play()
@@ -372,13 +401,13 @@ fun VideoPlayer(
             } else if (event == Lifecycle.Event.ON_DESTROY) {
                 releasePlayer()
             }
+
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-
 
     val subtitleTracksAvailable = remember {
         mutableStateListOf<Format>()
