@@ -3,6 +3,7 @@ package com.onair.videoplayer
 import android.app.Activity
 import android.app.PictureInPictureParams
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.util.Log
 import android.util.Rational
@@ -105,13 +106,19 @@ fun VideoPlayer(
     val configuration = LocalConfiguration.current
     val windowMetrics =
         WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(reactActivity)
-// Determine screen width and height
+
+    // Determine screen width and height
     val screenWidth = windowMetrics.bounds.width()
     val screenHeight = windowMetrics.bounds.height()
 
     // Handle layout based on screen size
-    val isInPictureInPictureMode = screenWidth < 600 // Example threshold for PiP mode
-    Log.i(LogTag, "isInPictureInPictureMode $isInPictureInPictureMode")
+    val isInPictureInPictureMode = screenWidth < 600
+    val isInLandscape by remember(configuration) {
+        mutableStateOf( configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
+    }
+
+    Log.i(LogTag, "isInPictureInPictureMode $isInPictureInPictureMode screenWidth $screenWidth screenHeight $screenHeight isInLandscape $isInLandscape")
+
 
 
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
@@ -199,10 +206,7 @@ fun VideoPlayer(
                     val drmSessionManagerProvider = DefaultDrmSessionManagerProvider()
                     drmSessionManagerProvider.setDrmHttpDataSourceFactory(
                         getHttpDataSourceFactory(context).setDefaultRequestProperties(
-                            mapOf(
-                                "Accept" to "application/octet-stream",
-                                "Content-Type" to "application/octet-stream"
-                            )
+                            getDrmHeadersMap()
                         )
                     )
                     val drmDataSourceFactory =
@@ -367,13 +371,13 @@ fun VideoPlayer(
 
 
     //Handle control button visibility for portrait and landscape
-    LaunchedEffect(isFullscreen) {
+    LaunchedEffect(isInLandscape) {
         if (DeviceType.isTv(context)) {
             audioTrackButton.isVisible(true)
             subtitleButton.isVisible(true)
             pipButton.isVisible(true)
         } else {
-            if (isFullscreen) {
+            if (isInLandscape) {
                 settingsButton.isVisible(false)
                 rewindButton.isVisible(true)
                 forwardButton.isVisible(true)
@@ -390,7 +394,7 @@ fun VideoPlayer(
             }
         }
         if (!DeviceType.isTv(context))
-            if (isFullscreen) {
+            if (isInLandscape) {
                 windowInsetsController?.hide(WindowInsetsCompat.Type.systemBars())
                 fullScreenButton.setImageDrawable(
                     ContextCompat.getDrawable(

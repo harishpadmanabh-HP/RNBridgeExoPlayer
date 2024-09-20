@@ -223,3 +223,8 @@ fun getReadOnlyDataSourceFactory(context: Context): DataSource.Factory {
     return dataSourceFactory
 }
 
+fun getDrmHeadersMap() = mapOf(
+    "Accept" to "application/octet-stream",
+    "Content-Type" to "application/octet-stream"
+)
+
