@@ -46,6 +46,9 @@ class VideoPlayerManager(private val reactContext: ReactApplicationContext) :
             val startPosition = props.getDouble(VideoPlayerProps.StartPosition).toLong()
             val resizeMode =
                 props.getInt(VideoPlayerProps.ResizeMode) ?: VideoResizeKeys.RESIZE_MODE_FILL
+            val hasDrm = props.getBoolean(VideoPlayerProps.hasDrm) ?: false
+            val drmLicenseUrl = props.getString(VideoPlayerProps.drmLicenseUrl) ?: ""
+
 
             (view.getChildAt(0) as? ComposeView)?.setContent {
                 VideoPlayer(
@@ -55,6 +58,8 @@ class VideoPlayerManager(private val reactContext: ReactApplicationContext) :
                     modifier = Modifier.fillMaxSize(),
                     title = title,
                     resizeMode = resizeMode,
+                    hasDrm = hasDrm,
+                    drmLicenseUrl = drmLicenseUrl,
                     onFullScreenChanged = {
                         val params = Arguments.createMap().apply {
                             putBoolean("isFullScreen", it)
@@ -93,4 +98,6 @@ object VideoPlayerProps {
     const val IsPlaying = "isPlaying"
     const val ResizeMode = "resizeMode"
     const val VideoDescription = "videoDescription"
+    const val hasDrm = "hasDrm"
+    const val drmLicenseUrl = "drmLicenseUrl"
 }

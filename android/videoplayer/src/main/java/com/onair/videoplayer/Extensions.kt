@@ -19,6 +19,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
@@ -75,7 +76,7 @@ fun getDialogWindow(): Window? = (LocalView.current.parent as? DialogWindowProvi
 fun getActivityWindow(): Window? = LocalView.current.context.findActivity()?.window
 
 
-fun VideoProps.toMediaItem(isLive: Boolean = false): MediaItem {
+fun VideoProps.toMediaItem(isLive: Boolean = false, hasDrm: Boolean): MediaItem {
     if (this.videoUrl.isNullOrEmpty())
         throw IllegalArgumentException("Invalid video URL passed to exoplayer.")
 
@@ -94,10 +95,17 @@ fun VideoProps.toMediaItem(isLive: Boolean = false): MediaItem {
                 .setMimeType(MimeTypes.APPLICATION_MPD)
                 .setMediaMetadata(metaData)
                 .also {
-                    if(isLive)
-                        it .setLiveConfiguration(
+                    if (isLive)
+                        it.setLiveConfiguration(
                             MediaItem.LiveConfiguration.Builder().setMaxPlaybackSpeed(1.02f).build()
                         )
+                    if (hasDrm && drmLicenseUrl.isNotEmpty()) {
+                        it.setDrmConfiguration(
+                            MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID)
+                                .setLicenseUri(drmLicenseUrl)
+                                .build()
+                        )
+                    }
                 }
                 .build()
         }
@@ -109,8 +117,8 @@ fun VideoProps.toMediaItem(isLive: Boolean = false): MediaItem {
                 .setMimeType(MimeTypes.APPLICATION_M3U8)
                 .setMediaMetadata(metaData)
                 .also {
-                    if(isLive)
-                        it .setLiveConfiguration(
+                    if (isLive)
+                        it.setLiveConfiguration(
                             MediaItem.LiveConfiguration.Builder().setMaxPlaybackSpeed(1.02f).build()
                         )
                 }
@@ -123,8 +131,8 @@ fun VideoProps.toMediaItem(isLive: Boolean = false): MediaItem {
                 .setUri(this.videoUrl)
                 .setMediaMetadata(metaData)
                 .also {
-                    if(isLive)
-                        it .setLiveConfiguration(
+                    if (isLive)
+                        it.setLiveConfiguration(
                             MediaItem.LiveConfiguration.Builder().setMaxPlaybackSpeed(1.02f).build()
                         )
                 }

@@ -21,6 +21,8 @@ const testUrl = 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sampl
 const multiLangTestUrl = 'https://cdn.bitmovin.com/content/assets/sintel/sintel.mpd'
 const multiSubtitle = 'https://dash.akamaized.net/dash264/TestCasesIOP41/CMAF/UnifiedStreaming/ToS_AVC_MultiRate_MultiRes_AAC_Eng_WebVTT.mpd'
 const multiLangs = 'https://dash.akamaized.net/dash264/TestCasesIOP41/MultiTrack/alternative_content/6/manifest_alternative_lang.mpd'
+const drmStreamUrl = 'https://api.vod.onair.events/multi-cdn?url=https://po.cdn.onair.events/vod/ad2437e2-6f54-11ef-aa2b-e9534bd37b13/u4q1upiu/dedjjo3s/index.mpd'
+const drmLicense = 'https://multi-drm.dev-onair.events/generate-auth-xml/license-acquisition?sku=drm-preview&accessToken=ZaFyuMgyuH&preview=true&drmType=widevine'
 
 const App = () => {
   const [isTV, setIsTV] = useState(false);
@@ -28,13 +30,14 @@ const App = () => {
   
 
   const playerProps = {
-    videoUrl: multiLangs,
+    videoUrl: drmStreamUrl,
     startPosition: 0,
     isPlaying: true,
     resizeMode: 1,
     videoTitle : 'Venus Tour',
-    videoDescription : 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industrys standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum'
-
+    videoDescription : 'Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industrys standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum',
+    hasDrm : true,
+    drmLicenseUrl : drmLicense
   }
 
   const videoPlayerRef = useRef(null);
@@ -57,7 +60,7 @@ const App = () => {
 
 
     const eventEmitter = new NativeEventEmitter(NativeModules.VideoPlayerManager);
-    const subscription = eventEmitter.addListener('onFullScreenChanged', (result) => {
+    const fullScreenChangedListener = eventEmitter.addListener('onFullScreenChanged', (result) => {
       NativeVideoPlayerBridgeModule.testLog(result.isFullScreen.toString());
       NativeVideoPlayerBridgeModule.testLog('caught in event emitter');
       setIsFullScreen(result.isFullScreen);
@@ -67,10 +70,15 @@ const App = () => {
         Orientation.unlockAllOrientations(); // Reset orientation on exit full screen
       }
     });
+    const playerErrorListener = eventEmitter.addListener('playerError',(result) => {
+      NativeVideoPlayerBridgeModule.testLog(result);
+      NativeVideoPlayerBridgeModule.showToast(result.toString());
+    });
 
     return () => {
       backHandler.remove();
-      subscription.remove();
+      fullScreenChangedListener.remove();
+      playerErrorListener.remove();
     };
   }, [isFullScreen]);
 

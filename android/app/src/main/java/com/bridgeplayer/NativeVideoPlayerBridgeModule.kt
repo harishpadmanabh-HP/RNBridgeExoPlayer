@@ -21,6 +21,10 @@ class NativeVideoPlayerBridgeModule(private val reactContext: ReactApplicationCo
         println("GET DATA FROM RN <--- $param")
     }
 
+    @ReactMethod
+    fun showToast(message: String) {
+        Toast.makeText(reactContext, message, Toast.LENGTH_SHORT).show()
+    }
 
 }
 

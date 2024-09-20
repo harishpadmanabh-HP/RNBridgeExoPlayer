@@ -10,4 +10,5 @@ data class VideoProps(
     val description: String = "",
     val artistName: String = "",
     val artworkUrl: String = "",
+    val drmLicenseUrl: String = "",
 )

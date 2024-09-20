@@ -1,7 +1,6 @@
 package com.onair.videoplayer
 
 import android.app.Activity
-import android.app.Dialog
 import android.app.PictureInPictureParams
 import android.content.pm.PackageManager
 import android.os.Build
@@ -58,7 +57,9 @@ import androidx.media3.common.text.Cue.TEXT_SIZE_TYPE_ABSOLUTE
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.drm.DefaultDrmSessionManagerProvider
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -91,6 +92,8 @@ fun VideoPlayer(
     seekForwardSeconds: Int = 10,
     isInListItem: Boolean = false,
     isLive: Boolean = false,
+    hasDrm: Boolean = false,
+    drmLicenseUrl: String = "",
     resizeMode: Int = VideoResizeKeys.RESIZE_MODE_FIT,
     lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
     onIsPlayingChanged: (Boolean) -> Unit = {},
@@ -100,14 +103,15 @@ fun VideoPlayer(
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     val configuration = LocalConfiguration.current
-    val windowMetrics = WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(reactActivity)
+    val windowMetrics =
+        WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(reactActivity)
 // Determine screen width and height
     val screenWidth = windowMetrics.bounds.width()
     val screenHeight = windowMetrics.bounds.height()
 
     // Handle layout based on screen size
     val isInPictureInPictureMode = screenWidth < 600 // Example threshold for PiP mode
-    Log.i(LogTag,"isInPictureInPictureMode $isInPictureInPictureMode")
+    Log.i(LogTag, "isInPictureInPictureMode $isInPictureInPictureMode")
 
 
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
@@ -123,8 +127,9 @@ fun VideoPlayer(
                 videoUrl = videoUrl,
                 description = description,
                 artistName = artistName,
-                artworkUrl = artworkUrl
-            ).toMediaItem(isLive)
+                artworkUrl = artworkUrl,
+                drmLicenseUrl = drmLicenseUrl
+            ).toMediaItem(isLive, hasDrm)
         )
     }
 
@@ -173,7 +178,10 @@ fun VideoPlayer(
     }
 
     val exoPlayer = remember {
-        ExoPlayer.Builder(context)
+        ExoPlayer.Builder(
+            context,
+            DefaultRenderersFactory(context).forceEnableMediaCodecAsynchronousQueueing()
+        )
             .setSeekBackIncrementMs(seekBackSeconds * 1000L)
             .setSeekForwardIncrementMs(seekForwardSeconds * 1000L)
             .setTrackSelector(trackSelector)
@@ -186,6 +194,22 @@ fun VideoPlayer(
                         DefaultLivePlaybackSpeedControl.Builder().setFallbackMaxPlaybackSpeed(1.04f)
                             .build()
                     )
+                }
+                if (hasDrm && drmLicenseUrl.isNotEmpty()) {
+                    val drmSessionManagerProvider = DefaultDrmSessionManagerProvider()
+                    drmSessionManagerProvider.setDrmHttpDataSourceFactory(
+                        getHttpDataSourceFactory(context).setDefaultRequestProperties(
+                            mapOf(
+                                "Accept" to "application/octet-stream",
+                                "Content-Type" to "application/octet-stream"
+                            )
+                        )
+                    )
+                    val drmDataSourceFactory =
+                        DefaultMediaSourceFactory(context)
+                            .setDrmSessionManagerProvider(drmSessionManagerProvider)
+                    it.setMediaSourceFactory(drmDataSourceFactory)
+
                 }
             }
             .build().apply {
@@ -244,7 +268,7 @@ fun VideoPlayer(
     val forwardButton = remember {
         playerView.findViewById<Button>(R.id.exo_ffwd_custom)
     }
-    val controllerLayout= remember {
+    val controllerLayout = remember {
         playerView.findViewById<ConstraintLayout>(R.id.exo_parent_control_layout)
     }
 
@@ -391,7 +415,7 @@ fun VideoPlayer(
                 configureControlButtons()
                 setDetails()
                 setLiveIndicators()
-                Log.i(LogTag,"PIP ${reactActivity.isInPictureInPictureMode}")
+                Log.i(LogTag, "PIP ${reactActivity.isInPictureInPictureMode}")
             } else if (event == Lifecycle.Event.ON_START) {
                 if (exoPlayer.isPlaying.not()) {
                     exoPlayer.play()
@@ -422,6 +446,7 @@ fun VideoPlayer(
         mutableStateOf<Format?>(null)
     }
 
+    //toggle fullscreen on back press
     BackHandler(isFullscreen) {
         isFullscreen = !isFullscreen
         onFullScreenChanged(isFullscreen)
@@ -514,13 +539,13 @@ fun VideoPlayer(
                 subtitleButton.requestFocus()
 
             },
-            onAudioTrackSelected = {format->
+            onAudioTrackSelected = { format ->
                 applySelectedAudioTrack(
                     player = exoPlayer,
                     language = format?.language,
                     mimeType = format?.sampleMimeType
                 )
-                audioTrackSelected=format
+                audioTrackSelected = format
                 currentDialogType = TrackSettingsDialogType.None
                 audioTrackButton.requestFocus()
             },

@@ -22,11 +22,19 @@ import androidx.compose.ui.platform.LocalView
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cronet.CronetDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.TrackGroupArray
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.DefaultTrackNameProvider
+import org.chromium.net.CronetEngine
+import java.util.concurrent.Executors
 
 fun View.isVisible(visible: Boolean) {
     if (visible)
@@ -185,3 +193,33 @@ fun updatePipParams(
             reactActivity.setPictureInPictureParams(pipParamsBuilder.build())
         }
 }
+
+@Synchronized
+fun getHttpDataSourceFactory(context: Context): HttpDataSource.Factory {
+       val  cronetDataSourceFactory = CronetDataSource.Factory(
+            CronetEngine.Builder(context).build(),
+            Executors.newSingleThreadExecutor()
+        )
+
+    val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+
+    return httpDataSourceFactory
+}
+
+@OptIn(UnstableApi::class)
+@Synchronized
+fun getReadOnlyDataSourceFactory(context: Context): DataSource.Factory {
+        val contextApplication = context.applicationContext
+        val upstreamFactory = DefaultDataSource.Factory(
+            contextApplication,
+            getHttpDataSourceFactory(contextApplication)
+        )
+       val  dataSourceFactory = CacheDataSource.Factory()
+            //.setCache(getDownloadCache(contextApplication))
+            .setUpstreamDataSourceFactory(upstreamFactory)
+            .setCacheWriteDataSinkFactory(null)
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+
+    return dataSourceFactory
+}
+
