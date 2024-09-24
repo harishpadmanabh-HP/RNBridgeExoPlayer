@@ -196,32 +196,11 @@ fun updatePipParams(
 
 @Synchronized
 fun getHttpDataSourceFactory(context: Context): HttpDataSource.Factory {
-       val  cronetDataSourceFactory = CronetDataSource.Factory(
-            CronetEngine.Builder(context).build(),
-            Executors.newSingleThreadExecutor()
-        )
-
     val httpDataSourceFactory = DefaultHttpDataSource.Factory()
-
     return httpDataSourceFactory
 }
 
-@OptIn(UnstableApi::class)
-@Synchronized
-fun getReadOnlyDataSourceFactory(context: Context): DataSource.Factory {
-        val contextApplication = context.applicationContext
-        val upstreamFactory = DefaultDataSource.Factory(
-            contextApplication,
-            getHttpDataSourceFactory(contextApplication)
-        )
-       val  dataSourceFactory = CacheDataSource.Factory()
-            //.setCache(getDownloadCache(contextApplication))
-            .setUpstreamDataSourceFactory(upstreamFactory)
-            .setCacheWriteDataSinkFactory(null)
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
-    return dataSourceFactory
-}
 
 fun getDrmHeadersMap() = mapOf(
     "Accept" to "application/octet-stream",
