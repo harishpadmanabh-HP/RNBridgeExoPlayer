@@ -76,12 +76,11 @@ fun getDialogWindow(): Window? = (LocalView.current.parent as? DialogWindowProvi
 fun getActivityWindow(): Window? = LocalView.current.context.findActivity()?.window
 
 
-fun VideoProps.toMediaItem(isLive: Boolean = false, hasDrm: Boolean): MediaItem {
-    if (this.videoUrl.isNullOrEmpty())
+fun VideoInfo.toMediaItem(): MediaItem {
+    if (this.videoUrl.isEmpty())
         throw IllegalArgumentException("Invalid video URL passed to exoplayer.")
 
     val metaData = MediaMetadata.Builder()
-        .setArtworkUri(Uri.parse(this.artworkUrl))
         .setTitle(title)
         .setDisplayTitle(title)
         .setDescription(description)
@@ -99,10 +98,10 @@ fun VideoProps.toMediaItem(isLive: Boolean = false, hasDrm: Boolean): MediaItem 
                         it.setLiveConfiguration(
                             MediaItem.LiveConfiguration.Builder().setMaxPlaybackSpeed(1.02f).build()
                         )
-                    if (hasDrm && drmLicenseUrl.isNotEmpty()) {
+                    if (hasValidDrm()) {
                         it.setDrmConfiguration(
                             MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID)
-                                .setLicenseUri(drmLicenseUrl)
+                                .setLicenseUri(getDrmLicense())
                                 .build()
                         )
                     }
@@ -141,3 +140,6 @@ fun VideoProps.toMediaItem(isLive: Boolean = false, hasDrm: Boolean): MediaItem 
     }
 
 }
+
+fun VideoInfo?.hasValidDrm() = this?.drmConfigs?.hasDrm==true && this.drmConfigs.drmLicenseUrl.isNotEmpty()
+fun VideoInfo?.getDrmLicense() = this?.drmConfigs?.drmLicenseUrl ?: ""

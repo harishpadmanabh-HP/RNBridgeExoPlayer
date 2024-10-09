@@ -69,6 +69,10 @@ dependencies {
     implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
     implementation ("androidx.window:window:1.0.0")
 
+    implementation ("androidx.media3:media3-cast:1.4.1")
+    implementation ("androidx.mediarouter:mediarouter:1.7.0")
+    implementation ("com.google.android.gms:play-services-cast-framework:21.5.0")
+
 
 
 

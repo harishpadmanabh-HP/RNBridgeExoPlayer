@@ -80,22 +80,9 @@ val LogTag = "NativeVideoPlayer"
 @OptIn(UnstableApi::class)
 @Composable
 fun VideoPlayer(
-    videoUrl: String,
     reactActivity: Activity,
-    parentFrame: FrameLayout,
+    videoInfo: VideoInfo,
     modifier: Modifier = Modifier,
-    title: String = "Venus Tour",
-    description: String = "",
-    artistName: String = "Zara Larrason",
-    artworkUrl: String = "",
-    playWhenReady: Boolean = true,
-    seekBackSeconds: Int = 5,
-    seekForwardSeconds: Int = 10,
-    isInListItem: Boolean = false,
-    isLive: Boolean = false,
-    hasDrm: Boolean = false,
-    drmLicenseUrl: String = "",
-    resizeMode: Int = VideoResizeKeys.RESIZE_MODE_FIT,
     lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
     onIsPlayingChanged: (Boolean) -> Unit = {},
     onPlayerError: (String?) -> Unit = {},
@@ -103,11 +90,11 @@ fun VideoPlayer(
 ) {
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
+
     val configuration = LocalConfiguration.current
     val windowMetrics =
         WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(reactActivity)
 
-    // Determine screen width and height
     val screenWidth = windowMetrics.bounds.width()
     val screenHeight = windowMetrics.bounds.height()
 
@@ -119,8 +106,6 @@ fun VideoPlayer(
 
     Log.i(LogTag, "isInPictureInPictureMode $isInPictureInPictureMode screenWidth $screenWidth screenHeight $screenHeight isInLandscape $isInLandscape")
 
-
-
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
 
     var caption by rememberSaveable {
@@ -129,15 +114,7 @@ fun VideoPlayer(
 
 
     val mediaItem = remember {
-        mutableStateOf(
-            VideoProps(
-                videoUrl = videoUrl,
-                description = description,
-                artistName = artistName,
-                artworkUrl = artworkUrl,
-                drmLicenseUrl = drmLicenseUrl
-            ).toMediaItem(isLive, hasDrm)
-        )
+        mutableStateOf(videoInfo.toMediaItem())
     }
 
     val trackSelector = remember {
@@ -146,8 +123,8 @@ fun VideoPlayer(
         }
     }
 
-    var isplayerReady by remember {
-        mutableStateOf(false)
+    var exoPlayerPlaybackState by remember {
+        mutableStateOf(Player.STATE_IDLE)
     }
 
     val playerView = remember {
@@ -173,11 +150,7 @@ fun VideoPlayer(
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_READY) {
-                    // ExoPlayer is ready; you can access track information now
-                    isplayerReady = true
-
-                }
+                exoPlayerPlaybackState=playbackState
             }
 
         }
@@ -189,11 +162,11 @@ fun VideoPlayer(
             context,
             DefaultRenderersFactory(context).forceEnableMediaCodecAsynchronousQueueing()
         )
-            .setSeekBackIncrementMs(seekBackSeconds * 1000L)
-            .setSeekForwardIncrementMs(seekForwardSeconds * 1000L)
+            .setSeekBackIncrementMs(10 * 1000L)
+            .setSeekForwardIncrementMs(10 * 1000L)
             .setTrackSelector(trackSelector)
             .also {
-                if (isLive) {
+                if (videoInfo.isLive) {
                     it.setMediaSourceFactory(
                         DefaultMediaSourceFactory(context).setLiveTargetOffsetMs(5000)
                     )
@@ -202,7 +175,7 @@ fun VideoPlayer(
                             .build()
                     )
                 }
-                if (hasDrm && drmLicenseUrl.isNotEmpty()) {
+                if (videoInfo.hasValidDrm()) {
                     val drmSessionManagerProvider = DefaultDrmSessionManagerProvider()
                     drmSessionManagerProvider.setDrmHttpDataSourceFactory(
                         getHttpDataSourceFactory(context).setDefaultRequestProperties(
@@ -228,6 +201,7 @@ fun VideoPlayer(
         exoPlayer.removeListener(exoPlayerListener)
         exoPlayer.release()
     }
+
 
 
     val interactionSource = remember { MutableInteractionSource() }
@@ -289,12 +263,12 @@ fun VideoPlayer(
         WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
     val setDetails = {
-        titleView.text = title
-        artistView.text = artistName
+        titleView.text = videoInfo.title
+        artistView.text = videoInfo.artistName
     }
 
     val setLiveIndicators = {
-        liveIndicatorLayout.visibility = if (isLive) View.VISIBLE else View.GONE
+        liveIndicatorLayout.visibility = if (videoInfo.isLive) View.VISIBLE else View.GONE
     }
 
 
@@ -303,6 +277,7 @@ fun VideoPlayer(
             fullScreenButton.setOnClickListener {
                 isFullscreen = !isFullscreen
                 onFullScreenChanged(isFullscreen)
+
             }
             rewindButton.setOnClickListener {
                 exoPlayer.seekBack()
@@ -311,6 +286,7 @@ fun VideoPlayer(
                 exoPlayer.seekForward()
             }
             settingsButton.setOnClickListener {
+                Log.i(LogTag,"Settings Clicked")
                 currentDialogType = TrackSettingsDialogType.Settings
             }
         }
@@ -475,7 +451,7 @@ fun VideoPlayer(
                 it.setShowPreviousButton(false)
                 it.showController()
                 // it.setResizeMode(resizeMode.asAspectRatioFrameLayoutResizeMode())
-                it.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL)
+                it.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM)
                 it.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener {
                     isControllerVisible = it == View.VISIBLE
                 })
@@ -500,7 +476,6 @@ fun VideoPlayer(
 
             },
             modifier = Modifier
-                //  .fillMaxSize()
                 .zIndex(1f)
                 .focusable(
                     enabled = true,
@@ -564,17 +539,23 @@ fun VideoPlayer(
         )
 
     }
+
+    //Bring player into focus so that TV remote can interact.
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
-    LaunchedEffect(isplayerReady) {
-        launch {
-            subtitleTracksAvailable.clear()
-            subtitleTracksAvailable.addAll(getTrackOfType(exoPlayer, context, C.TRACK_TYPE_TEXT))
-        }
-        launch {
-            audioTracksAvailable.clear()
-            audioTracksAvailable.addAll(getTrackOfType(exoPlayer, context, C.TRACK_TYPE_AUDIO))
+
+    //Get Subtitles and audio channels when the player is ready.
+    LaunchedEffect(exoPlayerPlaybackState) {
+        if(exoPlayerPlaybackState == Player.STATE_READY){
+            launch {
+                subtitleTracksAvailable.clear()
+                subtitleTracksAvailable.addAll(getTrackOfType(exoPlayer, context, C.TRACK_TYPE_TEXT))
+            }
+            launch {
+                audioTracksAvailable.clear()
+                audioTracksAvailable.addAll(getTrackOfType(exoPlayer, context, C.TRACK_TYPE_AUDIO))
+            }
         }
     }
 

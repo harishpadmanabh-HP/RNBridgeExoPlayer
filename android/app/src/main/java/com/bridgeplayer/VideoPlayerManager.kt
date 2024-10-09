@@ -15,6 +15,8 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.uimanager.SimpleViewManager
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.annotations.ReactProp
+import com.onair.videoplayer.DrmConfigs
+import com.onair.videoplayer.VideoInfo
 import com.onair.videoplayer.VideoPlayer
 import com.onair.videoplayer.VideoResizeKeys
 
@@ -49,17 +51,21 @@ class VideoPlayerManager(private val reactContext: ReactApplicationContext) :
             val hasDrm = props.getBoolean(VideoPlayerProps.hasDrm) ?: false
             val drmLicenseUrl = props.getString(VideoPlayerProps.drmLicenseUrl) ?: ""
 
+            val videoInfo = VideoInfo(
+                videoUrl = videoUrl,
+                title = title,
+                artistName = "Zara",
+                description ="",
+                isLive = false,
+                shouldAutoPlay = true,
+                drmConfigs = if(drmLicenseUrl.isNotEmpty()) DrmConfigs(drmLicenseUrl, hasDrm) else null
+            )
+
 
             (view.getChildAt(0) as? ComposeView)?.setContent {
                 VideoPlayer(
-                    videoUrl = videoUrl,
+                    videoInfo = videoInfo,
                     reactActivity = activity,
-                    parentFrame = view,
-                    modifier = Modifier.fillMaxSize(),
-                    title = title,
-                    resizeMode = resizeMode,
-                    hasDrm = hasDrm,
-                    drmLicenseUrl = drmLicenseUrl,
                     onFullScreenChanged = {
                         val params = Arguments.createMap().apply {
                             putBoolean("isFullScreen", it)

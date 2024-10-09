@@ -1,0 +1,18 @@
+{
+  "name": "react-native-fabric-video-player",
+  "version": "0.0.0",
+  "description": "fabric video player component",
+  "main": "src/index",
+  "codegenConfig": {
+    "name": "RNFabricVideoPlayerViewSpec",
+    "type": "components",
+    "jsSrcsDir": "src"
+  },
+  "author": " <> ()",
+  "license": "UNLICENSED",
+  "homepage": "#readme",
+  "create-react-native-library": {
+    "type": "view-mixed",
+    "version": "0.41.2"
+  }
+}
